@@ -1,0 +1,4 @@
+1../mvnw clean package -DskipTests 
+  or mvn 
+2. docker compose up --build
+3. the controller class has the api
