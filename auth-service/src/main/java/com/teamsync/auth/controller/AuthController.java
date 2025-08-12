@@ -172,4 +172,24 @@ public class AuthController {
 
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+    @GetMapping(value = "/validate", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<SuccessResponse<Boolean>> validateToken(HttpServletRequest request) {
+        String jwtToken = request.getHeader("Authorization");
+        boolean isValid = false;
+        
+        if (jwtToken != null && jwtToken.startsWith("Bearer ")) {
+            jwtToken = jwtToken.substring(7);
+            isValid = authService.validateToken(jwtToken);
+        }
+
+        SuccessResponse<Boolean> response = SuccessResponse.<Boolean>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("Token validation completed")
+                .data(isValid)
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
 }

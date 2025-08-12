@@ -173,6 +173,20 @@ public class AuthService {
         passwordResetService.resetPassword(resetRequest);
     }
 
+    public boolean validateToken(String jwtToken) {
+        if (jwtToken == null || jwtToken.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Check if token is blacklisted
+        if (isTokenBlacklisted(jwtToken)) {
+            return false;
+        }
+        
+        // Validate JWT token using JwtProvider
+        return jwtProvider.validateToken(jwtToken);
+    }
+
     private Authentication authenticate(String username, String password) {
         // Load user directly from repository
         Users user = userRepository.findByEmail(username);

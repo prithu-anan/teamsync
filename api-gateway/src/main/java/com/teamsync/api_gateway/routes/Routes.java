@@ -32,5 +32,5 @@ public class Routes {
                 .route(RequestPredicates.path("/api/users/**"), HandlerFunctions.http("http://user-management-service:8082"))
                 .build();
     }
-
+    
 }
