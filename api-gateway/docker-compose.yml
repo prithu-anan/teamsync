@@ -1,0 +1,13 @@
+services:
+  api-gateway:
+    build: .
+    container_name: api_gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - teamsync_network
+
+networks:
+  teamsync_network:
+    external:
+      name: teamsync_network

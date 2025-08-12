@@ -13,13 +13,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - user_management_network
+      - teamsync_network
 
   user-management-service:
     build: .
     container_name: user_management_service
     ports:
-      - "8081:8081"
+      - "8082:8082"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_management_db
       SPRING_DATASOURCE_USERNAME: postgres
@@ -27,11 +27,12 @@ services:
     depends_on:
       - postgres
     networks:
-      - user_management_network
+      - teamsync_network
 
 volumes:
   postgres_data:
 
 networks:
-  user_management_network:
-    driver: bridge
+  teamsync_network:
+    external:
+      name: teamsync_network
