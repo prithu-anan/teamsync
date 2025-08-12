@@ -37,6 +37,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final PasswordResetService passwordResetService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final UserManagementClient userManagementClient;
 
     @Transactional
     public UserResponseDTO registerUser(UserCreationDTO userCreationDTO, HttpServletRequest request) {
@@ -53,8 +54,18 @@ public class AuthService {
         newUser.setPassword(passwordEncoder.encode(userCreationDTO.getPassword()));
         newUser.setJoinDate(LocalDate.now());
 
-        // Save user
+        // Save user in auth service database
         Users savedUser = userRepository.save(newUser);
+
+        // Also create user in user-management-service
+        try {
+            userManagementClient.createUserInUserManagement(userCreationDTO);
+            log.info("User created successfully in both auth-service and user-management-service: {}", userCreationDTO.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to create user in user-management-service: {}", e.getMessage());
+            // Note: We don't throw here to avoid rolling back the auth service user creation
+            // The user can still authenticate, but won't have profile management features
+        }
 
         // Create authentication and generate tokens
         Authentication authentication = new UsernamePasswordAuthenticationToken(
