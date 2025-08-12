@@ -2,15 +2,21 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: auth_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5431:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - teamsync-network
+      - teamsync_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d auth_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth-service:
     build: .
@@ -22,7 +28,8 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - teamsync_network
 
@@ -30,5 +37,5 @@ volumes:
   postgres_data:
 
 networks:
-  teamsync-network:
+  teamsync_network:
     external: true

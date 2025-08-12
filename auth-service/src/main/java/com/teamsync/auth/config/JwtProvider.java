@@ -38,11 +38,11 @@ public class JwtProvider {
         if (jwt.startsWith("Bearer ")) {
             jwt = jwt.substring(7);
         }
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(jwt)
-                .getBody()
+                .parseSignedClaims(jwt)
+                .getPayload()
                 .get("email", String.class);
     }
 
@@ -51,10 +51,10 @@ public class JwtProvider {
             if (jwt.startsWith("Bearer ")) {
                 jwt = jwt.substring(7);
             }
-            Jwts.parserBuilder()
-                    .setSigningKey(key)
+            Jwts.parser()
+                    .verifyWith(key)
                     .build()
-                    .parseClaimsJws(jwt);
+                    .parseSignedClaims(jwt);
             return true;
         } catch (Exception e) {
             return false;
@@ -65,11 +65,11 @@ public class JwtProvider {
         if (jwt.startsWith("Bearer ")) {
             jwt = jwt.substring(7);
         }
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(key)
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(jwt)
-                .getBody();
+                .parseSignedClaims(jwt)
+                .getPayload();
         return claims.getExpiration();
     }
 }
