@@ -9,5 +9,4 @@ services:
 
 networks:
   teamsync_network:
-    external:
-      name: teamsync_network
+    external: true

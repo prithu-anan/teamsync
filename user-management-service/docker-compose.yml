@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15
@@ -34,5 +32,4 @@ volumes:
 
 networks:
   teamsync_network:
-    external:
-      name: teamsync_network
+    external: true

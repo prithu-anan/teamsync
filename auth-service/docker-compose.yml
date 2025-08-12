@@ -1,17 +1,16 @@
 services:
   postgres:
     image: postgres:15
-    container_name: auth_postgres
     environment:
-      POSTGRES_DB: auth_db
+      POSTGRES_DB: postgres
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: 123
     ports:
       - "5431:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - teamsync_network
+      - teamsync-network
 
   auth-service:
     build: .
@@ -31,6 +30,5 @@ volumes:
   postgres_data:
 
 networks:
-  teamsync_network:
-    external:
-      name: teamsync_network
+  teamsync-network:
+    external: true
