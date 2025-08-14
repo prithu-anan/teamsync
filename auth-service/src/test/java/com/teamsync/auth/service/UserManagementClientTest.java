@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -47,7 +47,9 @@ class UserManagementClientTest {
                 .id(1L)
                 .name("Test User")
                 .email("test@example.com")
-                .joinDate(LocalDate.now())
+                .isActive(true)
+                .createdAt(LocalDateTime.now())
+                .lastLoginAt(null)
                 .build();
 
         userManagementResponse = UserManagementResponse.builder()

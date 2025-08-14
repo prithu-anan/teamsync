@@ -20,7 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,14 +50,13 @@ public class AuthService {
         // Convert DTO to entity using mapper
         Users newUser = userMapper.toEntity(userCreationDTO);
 
-        // Encode password and set join date
+        // Encode password
         newUser.setPassword(passwordEncoder.encode(userCreationDTO.getPassword()));
-        newUser.setJoinDate(LocalDate.now());
 
-        // Save user in auth service database
+        // Save minimal user in auth service database
         Users savedUser = userRepository.save(newUser);
 
-        // Also create user in user-management-service
+        // Create full user profile in user-management-service
         try {
             userManagementClient.createUserInUserManagement(userCreationDTO);
             log.info("User created successfully in both auth-service and user-management-service: {}", userCreationDTO.getEmail());
@@ -91,6 +90,10 @@ public class AuthService {
         if (user == null) {
             throw new RuntimeException("User not found");
         }
+
+        // Update last login time
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
 
         String refreshToken = refreshTokenService.createRefreshToken(user, request);
 
@@ -146,17 +149,15 @@ public class AuthService {
     }
 
     public void updateCurrentUser(UserUpdateRequestDTO requestDTO) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        Users user = userRepository.findByEmail(email);
-        if (user == null) {
-            throw new RuntimeException("User not found");
+        // For user profile updates, delegate to user-management-service
+        // Auth service only handles authentication-related updates
+        try {
+            userManagementClient.updateUserProfile(requestDTO);
+            log.info("User profile updated via user-management-service");
+        } catch (Exception e) {
+            log.error("Failed to update user profile via user-management-service: {}", e.getMessage());
+            throw new RuntimeException("Failed to update user profile");
         }
-
-        user.setName(requestDTO.getName());
-        user.setProfilePicture(requestDTO.getProfile_picture());
-        user.setDesignation(requestDTO.getDesignation());
-
-        userRepository.save(user);
     }
 
     public void changePassword(PasswordChangeRequestDTO requestDTO) {
@@ -172,6 +173,8 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(requestDTO.getNewPassword()));
         userRepository.save(user);
+        
+        log.info("Password changed successfully for user: {}", email);
     }
 
     @Transactional
@@ -204,6 +207,10 @@ public class AuthService {
 
         if (user == null) {
             throw new BadCredentialsException("Invalid username");
+        }
+
+        if (!user.getIsActive()) {
+            throw new BadCredentialsException("Account is deactivated");
         }
 
         if (!passwordEncoder.matches(password, user.getPassword())) {

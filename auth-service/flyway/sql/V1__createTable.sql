@@ -1,17 +1,15 @@
 CREATE TABLE users (
    id BIGSERIAL PRIMARY KEY,
-   name VARCHAR(255) NOT NULL,
    email VARCHAR(255) NOT NULL UNIQUE,
    password VARCHAR(255) NOT NULL,
-   profile_picture VARCHAR(255),
-   designation VARCHAR(50),
-   birthdate DATE,
-   join_date DATE,
-   predicted_burnout_risk BOOLEAN
+   name VARCHAR(255) NOT NULL,
+   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+   last_login_at TIMESTAMP
 );
 
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_designation ON users(designation);
+CREATE INDEX idx_users_is_active ON users(is_active);
 
 CREATE TABLE blacklisted_tokens (
    id BIGSERIAL PRIMARY KEY,

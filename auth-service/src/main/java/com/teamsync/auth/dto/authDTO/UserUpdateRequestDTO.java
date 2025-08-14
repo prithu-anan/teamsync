@@ -11,6 +11,5 @@ import lombok.NoArgsConstructor;
 @Builder
 public class UserUpdateRequestDTO {
     private String name;
-    private String profile_picture;
-    private String designation;
+    private String email; // Added for identification when updating via user-management-service
 }

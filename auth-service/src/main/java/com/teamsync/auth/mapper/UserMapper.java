@@ -6,6 +6,7 @@ import com.teamsync.auth.entity.Users;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper(componentModel = "spring")
@@ -13,11 +14,9 @@ public interface UserMapper {
 
     // User Creation mappings
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "profilePicture", ignore = true)
-    @Mapping(target = "designation", ignore = true)
-    @Mapping(target = "birthdate", ignore = true)
-    @Mapping(target = "joinDate", ignore = true)
-    @Mapping(target = "predictedBurnoutRisk", ignore = true)
+    @Mapping(target = "isActive", constant = "true")
+    @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
+    @Mapping(target = "lastLoginAt", ignore = true)
     Users toEntity(UserCreationDTO userCreationDTO);
 
     UserCreationDTO toCreationDTO(Users user);
