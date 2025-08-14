@@ -38,6 +38,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Check if token is blacklisted
                 if (tokenBlacklistService.isTokenBlacklisted(jwt)) {
                     log.warn("Blacklisted token used: {}", jwt);
+                    // Don't set authentication for blacklisted tokens
+                    // Continue with filter chain but without authentication
                     filterChain.doFilter(request, response);
                     return;
                 }

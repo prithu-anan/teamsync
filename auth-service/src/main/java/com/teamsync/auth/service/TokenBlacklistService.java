@@ -59,8 +59,12 @@ public class TokenBlacklistService {
 
     @Transactional
     public void cleanupExpiredTokens() {
-        // This method can be called periodically to clean up expired blacklisted tokens
-        // Implementation depends on your specific requirements
-        log.info("Cleaning up expired blacklisted tokens");
+        try {
+            Instant now = Instant.now();
+            int deletedCount = blacklistedTokenRepository.deleteByExpiresAtBefore(now);
+            log.info("Cleaned up {} expired blacklisted tokens", deletedCount);
+        } catch (Exception e) {
+            log.error("Error cleaning up expired blacklisted tokens: {}", e.getMessage());
+        }
     }
 }

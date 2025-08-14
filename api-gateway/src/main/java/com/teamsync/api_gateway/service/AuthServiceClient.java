@@ -33,4 +33,13 @@ public class AuthServiceClient {
                 .bodyToMono(String.class)
                 .onErrorReturn("");
     }
+    
+    public Mono<Boolean> isTokenBlacklisted(String token) {
+        return webClient.get()
+                .uri("/auth/blacklist/check")
+                .header("Authorization", "Bearer " + token)
+                .retrieve()
+                .bodyToMono(Boolean.class)
+                .onErrorReturn(false);
+    }
 }

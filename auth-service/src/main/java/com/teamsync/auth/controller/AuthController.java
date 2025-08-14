@@ -74,10 +74,13 @@ public class AuthController {
 
     @PostMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SuccessResponse<Void>> logout(
-            @RequestBody RefreshTokenRequestDTO refreshTokenRequest,
+            @RequestBody(required = false) RefreshTokenRequestDTO refreshTokenRequest,
             HttpServletRequest request) {
 
-        String refreshToken = refreshTokenRequest.getRefreshToken();
+        String refreshToken = null;
+        if (refreshTokenRequest != null) {
+            refreshToken = refreshTokenRequest.getRefreshToken();
+        }
 
         // Extract JWT token from Authorization header
         String jwtToken = request.getHeader("Authorization");
@@ -85,8 +88,29 @@ public class AuthController {
             jwtToken = jwtToken.substring(7);
         }
 
-        // Call logout with both tokens
+        // Call logout with both tokens (refresh token can be null)
         authService.logout(refreshToken, jwtToken);
+
+        SuccessResponse<Void> response = SuccessResponse.<Void>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("User logged out successfully")
+                .data(null)
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+    
+    @PostMapping(value = "/logout/simple", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<SuccessResponse<Void>> simpleLogout(HttpServletRequest request) {
+        // Extract JWT token from Authorization header
+        String jwtToken = request.getHeader("Authorization");
+        if (jwtToken != null && jwtToken.startsWith("Bearer ")) {
+            jwtToken = jwtToken.substring(7);
+        }
+
+        // Call logout with only JWT token
+        authService.logout(null, jwtToken);
 
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
@@ -114,17 +138,30 @@ public class AuthController {
     }
 
     @PostMapping(value = "/me", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<SuccessResponse<Void>> updateCurrentUser(@Valid @RequestBody UserUpdateRequestDTO requestDTO) {
+    public ResponseEntity<SuccessResponse<String>> updateCurrentUser(
+            @RequestBody UserUpdateRequestDTO userUpdateRequest) {
 
-        authService.updateCurrentUser(requestDTO);
+        authService.updateCurrentUser(userUpdateRequest);
 
-        SuccessResponse<Void> response = SuccessResponse.<Void>builder()
+        SuccessResponse<String> response = SuccessResponse.<String>builder()
                 .code(HttpStatus.OK.value())
                 .status(HttpStatus.OK)
-                .message("Current User updated successfully")
+                .message("User updated successfully")
+                .data("User profile updated successfully")
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+    
+    @GetMapping(value = "/blacklist/check", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Boolean> isTokenBlacklisted(HttpServletRequest request) {
+        String jwtToken = request.getHeader("Authorization");
+        if (jwtToken != null && jwtToken.startsWith("Bearer ")) {
+            jwtToken = jwtToken.substring(7);
+        }
+        
+        boolean isBlacklisted = authService.isTokenBlacklisted(jwtToken);
+        return ResponseEntity.ok(isBlacklisted);
     }
 
     @PostMapping(value = "/password-change", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
