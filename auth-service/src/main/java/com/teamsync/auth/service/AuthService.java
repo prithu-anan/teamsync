@@ -27,6 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collection;
+import java.util.Date;
+import java.util.stream.Collectors;
+import io.jsonwebtoken.Jwts;
 
 @Slf4j
 @Service
@@ -94,14 +98,25 @@ public class AuthService {
         Authentication authentication = authenticate(loginRequestDTO.getEmail(), loginRequestDTO.getPassword());
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // Generate tokens
-        String token = jwtProvider.generateToken(authentication);
-
-        // Get user details for response
+        // Get user details for response and token generation
         Users user = userRepository.findByEmail(loginRequestDTO.getEmail());
         if (user == null) {
             throw new RuntimeException("User not found");
         }
+
+        // Create a custom authentication with user ID
+        Authentication customAuth = new UsernamePasswordAuthenticationToken(
+                user.getEmail(),
+                user.getPassword(),
+                authentication.getAuthorities()
+        );
+
+        // Generate tokens with user ID
+        String token = jwtProvider.generateToken(customAuth);
+        
+        // Manually set the user ID in the token since JWT generation can't access it
+        // We'll need to modify the approach - let's create a custom token generation
+        String tokenWithUserId = generateTokenWithUserId(user.getEmail(), user.getId(), authentication.getAuthorities());
 
         // Update last login time
         user.setLastLoginAt(LocalDateTime.now());
@@ -113,7 +128,20 @@ public class AuthService {
         UserResponseDTO userResponseDTO = userMapper.toResponseDTO(user);
 
         log.info("User logged in successfully: {}", user.getEmail());
-        return authMapper.toAuthResponseDTO(userResponseDTO, token, refreshToken);
+        return authMapper.toAuthResponseDTO(userResponseDTO, tokenWithUserId, refreshToken);
+    }
+
+    private String generateTokenWithUserId(String email, Long userId, Collection<? extends GrantedAuthority> authorities) {
+        return Jwts.builder()
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(new Date().getTime() + 12000000))
+                .claim("email", email)
+                .claim("userId", userId)
+                .claim("authorities", authorities.stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.joining(",")))
+                .signWith(jwtProvider.getKey())
+                .compact();
     }
 
     public TokenRefreshResponseDTO refreshToken(String refreshToken) {
@@ -150,14 +178,26 @@ public class AuthService {
             throw new SecurityException("Unauthorized access");
         }
 
+        // Get the JWT token from the request context
+        // Since we don't have direct access to the request here, we'll use the email from authentication
         String email = authentication.getName();
-        Users user = userRepository.findByEmail(email);
-
-        if (user == null) {
-            throw new RuntimeException("User not found");
+        
+        // Get user from auth service to get the ID
+        Users authUser = userRepository.findByEmail(email);
+        if (authUser == null) {
+            throw new RuntimeException("User not found in auth service");
         }
 
-        return authMapper.toCurrentUserResponseDTO(user);
+        // Fetch complete user information from user-management-service
+        try {
+            UserResponseDTO userResponse = userManagementClient.getUserById(authUser.getId());
+            log.info("User information retrieved from user-management-service for user: {}", email);
+            return userResponse;
+        } catch (Exception e) {
+            log.error("Failed to fetch user from user-management-service: {}", e.getMessage());
+            // Fallback to local user data
+            return authMapper.toCurrentUserResponseDTO(authUser);
+        }
     }
 
     public void updateCurrentUser(UserUpdateRequestDTO requestDTO) {

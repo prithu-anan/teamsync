@@ -25,6 +25,7 @@ public class JwtProvider {
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(new Date().getTime() + 12000000))
                 .claim("email", auth.getName())
+                .claim("userId", getUserIdFromAuthentication(auth))
                 .claim("authorities", auth.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .collect(Collectors.joining(",")))
@@ -32,6 +33,18 @@ public class JwtProvider {
                 .compact();
 
         return jwt;
+    }
+
+    private Long getUserIdFromAuthentication(Authentication auth) {
+        // Extract user ID from authentication principal
+        if (auth.getPrincipal() instanceof org.springframework.security.core.userdetails.User) {
+            org.springframework.security.core.userdetails.User userDetails = 
+                (org.springframework.security.core.userdetails.User) auth.getPrincipal();
+            // We need to get the user ID from the database using email
+            // This will be handled in the AuthService
+            return null; // Will be set by AuthService
+        }
+        return null;
     }
 
     public String getEmailFromToken(String jwt) {
@@ -44,6 +57,18 @@ public class JwtProvider {
                 .parseSignedClaims(jwt)
                 .getPayload()
                 .get("email", String.class);
+    }
+
+    public Long getUserIdFromToken(String jwt) {
+        if (jwt.startsWith("Bearer ")) {
+            jwt = jwt.substring(7);
+        }
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(jwt)
+                .getPayload()
+                .get("userId", Long.class);
     }
 
     public boolean validateToken(String jwt) {
@@ -71,5 +96,9 @@ public class JwtProvider {
                 .parseSignedClaims(jwt)
                 .getPayload();
         return claims.getExpiration();
+    }
+
+    public SecretKey getKey() {
+        return key;
     }
 }
