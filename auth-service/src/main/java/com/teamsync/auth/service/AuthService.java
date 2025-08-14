@@ -5,9 +5,13 @@ import com.teamsync.auth.dto.authDTO.*;
 import com.teamsync.auth.dto.userDTO.UserCreationDTO;
 import com.teamsync.auth.dto.userDTO.UserResponseDTO;
 import com.teamsync.auth.entity.Users;
+import com.teamsync.auth.exception.UserCreationException;
 import com.teamsync.auth.mapper.AuthMapper;
 import com.teamsync.auth.mapper.UserMapper;
 import com.teamsync.auth.repository.UserRepository;
+import com.teamsync.auth.service.RefreshTokenService;
+import com.teamsync.auth.service.TokenBlacklistService;
+import com.teamsync.auth.service.UserManagementClient;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +45,8 @@ public class AuthService {
 
     @Transactional
     public UserResponseDTO registerUser(UserCreationDTO userCreationDTO, HttpServletRequest request) {
+        log.info("Starting user registration process for email: {}", userCreationDTO.getEmail());
+        
         // Check if email already exists
         Users existingUser = userRepository.findByEmail(userCreationDTO.getEmail());
         if (existingUser != null) {
@@ -53,18 +59,23 @@ public class AuthService {
         // Encode password
         newUser.setPassword(passwordEncoder.encode(userCreationDTO.getPassword()));
 
-        // Save minimal user in auth service database
-        Users savedUser = userRepository.save(newUser);
-
-        // Create full user profile in user-management-service
+        // Create full user profile in user-management-service FIRST
+        // If this fails, the entire transaction will rollback
+        log.info("Attempting to create user in user-management-service for: {}", userCreationDTO.getEmail());
         try {
             userManagementClient.createUserInUserManagement(userCreationDTO);
-            log.info("User created successfully in both auth-service and user-management-service: {}", userCreationDTO.getEmail());
+            log.info("User created successfully in user-management-service: {}", userCreationDTO.getEmail());
         } catch (Exception e) {
             log.error("Failed to create user in user-management-service: {}", e.getMessage());
-            // Note: We don't throw here to avoid rolling back the auth service user creation
-            // The user can still authenticate, but won't have profile management features
+            // This will cause the entire transaction to rollback
+            throw new UserCreationException("Failed to create user profile. Please try again.", e);
         }
+
+        // Save minimal user in auth service database
+        // This will only happen if user management service succeeded
+        log.info("Saving user to auth service database for: {}", userCreationDTO.getEmail());
+        Users savedUser = userRepository.save(newUser);
+        log.info("User created successfully in auth-service: {}", userCreationDTO.getEmail());
 
         // Create authentication and generate tokens
         Authentication authentication = new UsernamePasswordAuthenticationToken(
@@ -73,6 +84,7 @@ public class AuthService {
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
+        log.info("User registration completed successfully for: {}", userCreationDTO.getEmail());
         return userMapper.toResponseDTO(savedUser);
     }
 

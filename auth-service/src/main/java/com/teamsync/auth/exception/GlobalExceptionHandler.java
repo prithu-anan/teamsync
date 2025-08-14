@@ -17,6 +17,20 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<SuccessResponse<String>> handleRuntimeException(RuntimeException ex) {
+        log.error("RuntimeException: {}", ex.getMessage());
+        
+        SuccessResponse<String> response = SuccessResponse.<String>builder()
+                .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .message(ex.getMessage())
+                .data(null)
+                .build();
+        
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<SuccessResponse<String>> handleIllegalArgumentException(IllegalArgumentException ex) {
         log.error("IllegalArgumentException: {}", ex.getMessage());
@@ -31,9 +45,9 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<SuccessResponse<String>> handleRuntimeException(RuntimeException ex) {
-        log.error("RuntimeException: {}", ex.getMessage());
+    @ExceptionHandler(UserCreationException.class)
+    public ResponseEntity<SuccessResponse<String>> handleUserCreationException(UserCreationException ex) {
+        log.error("UserCreationException: {}", ex.getMessage());
         
         SuccessResponse<String> response = SuccessResponse.<String>builder()
                 .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
