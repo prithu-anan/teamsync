@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
+import org.checkerframework.checker.units.qual.C;
+
 @Entity
 @Table(name = "users")
 @Data
@@ -22,7 +24,9 @@ public class Users {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, unique = true)
+    // @Column(nullable = false, unique = true)
+
+    @Column(nullable = false)
     private String email;
 
     @Column(nullable = false)

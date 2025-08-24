@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "UserDeletedEvent",
+  "namespace": "com.teamsync.usermanagement.event",
+  "fields": [
+    { "name": "userId", "type": "long" },
+    { "name": "email", "type": "string" }
+  ]
+}

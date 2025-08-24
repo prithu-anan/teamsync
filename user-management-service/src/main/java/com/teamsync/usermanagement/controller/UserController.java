@@ -3,6 +3,10 @@ package com.teamsync.usermanagement.controller;
 import com.teamsync.usermanagement.dto.UserCreationDTO;
 import com.teamsync.usermanagement.dto.UserResponseDTO;
 import com.teamsync.usermanagement.dto.UserUpdateDTO;
+import com.teamsync.usermanagement.entity.Users;
+import com.teamsync.usermanagement.dto.UserProjectDTO;
+import com.teamsync.usermanagement.dto.DesignationUpdateDto;
+
 import com.teamsync.usermanagement.response.SuccessResponse;
 import com.teamsync.usermanagement.service.UserService;
 import jakarta.validation.Valid;
@@ -19,23 +23,21 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
 
     @PostMapping
-    public ResponseEntity<SuccessResponse<UserResponseDTO>> createUser(
-            @Valid @RequestBody UserCreationDTO userDto) {
-        
-        UserResponseDTO createdUser = userService.createUser(userDto);
+    public ResponseEntity<SuccessResponse<Void>> createUser(@Valid @RequestBody UserCreationDTO userDto) {
+        userService.createUser(userDto);
 
-        SuccessResponse<UserResponseDTO> response = SuccessResponse.<UserResponseDTO>builder()
+        SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.CREATED.value())
                 .status(HttpStatus.CREATED)
                 .message("User created successfully")
-                .data(createdUser)
+                // .data(createdUser)
                 .build();
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -70,13 +72,12 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SuccessResponse<UserResponseDTO>> updateUser(
-            @PathVariable Long id,
             @Valid @RequestPart("user") UserUpdateDTO userUpdateDTO,
             @RequestPart(value = "file", required = false) MultipartFile file) {
 
-        UserResponseDTO updatedUser = userService.updateUser(id, userUpdateDTO, file);
+        UserResponseDTO updatedUser = userService.updateUser(userUpdateDTO, file);
 
         SuccessResponse<UserResponseDTO> response = SuccessResponse.<UserResponseDTO>builder()
                 .code(HttpStatus.OK.value())
@@ -93,11 +94,90 @@ public class UserController {
         userService.deleteUser(id);
 
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
-                .code(HttpStatus.OK.value())
+                .code(HttpStatus.NO_CONTENT.value())
                 .status(HttpStatus.OK)
                 .message("User deleted successfully")
                 .build();
 
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/designation/{id}")
+    // @PreAuthorize("@userAuthorizationService.isManager()")
+    public ResponseEntity<SuccessResponse<UserResponseDTO>> updateDesignation(@PathVariable Long id,
+            @Valid @RequestBody DesignationUpdateDto dto) {
+        UserResponseDTO user = userService.updateDesignation(id, dto);
+
+        SuccessResponse<UserResponseDTO> response = SuccessResponse.<UserResponseDTO>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .data(user)
+                .message("Designation updated successfully")
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/projects")
+    public ResponseEntity<SuccessResponse<List<UserProjectDTO>>> getCurrentUserProjects() {
+        System.out.println("*****************8*****************");
+        List<UserProjectDTO> userProjects = userService.getCurrentUserProjects();
+        SuccessResponse<List<UserProjectDTO>> response = SuccessResponse.<List<UserProjectDTO>>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("User projects retrieved successfully")
+                .data(userProjects)
+                .metadata(Map.of("count", userProjects.size()))
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    // Replace the bottom part of your UserController with these properly
+    // implemented endpoints:
+
+    // Fix the URL paths by removing redundant "/users" prefix
+    @GetMapping("/projects/{id}")
+    public ResponseEntity<SuccessResponse<UserResponseDTO>> findByIdProject(@PathVariable("id") Long id) {
+        UserResponseDTO user = userService.findByIdProject(id);
+
+        SuccessResponse<UserResponseDTO> response = SuccessResponse.<UserResponseDTO>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("User retrieved successfully for project")
+                .data(user)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/projects/email/{email}")
+    public ResponseEntity<SuccessResponse<UserResponseDTO>> findByEmailProject(@PathVariable("email") String email) {
+        UserResponseDTO user = userService.findByEmailProject(email);
+        System.out.println(user);
+        SuccessResponse<UserResponseDTO> response = SuccessResponse.<UserResponseDTO>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("User retrieved successfully for project")
+                .data(user)
+                .build();
+        System.out.println("Response: " + response);
+        return ResponseEntity.ok(response   );
+    }
+
+    @GetMapping("/current")
+    public ResponseEntity<SuccessResponse<UserResponseDTO>> getCurrentUser() {
+        Users currentUser = userService.getCurrentUser();
+        UserResponseDTO userResponse = userService.getUser(currentUser.getId()); // Get full user data with image
+
+        SuccessResponse<UserResponseDTO> response = SuccessResponse.<UserResponseDTO>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("Current user retrieved successfully")
+                .data(userResponse)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
 }

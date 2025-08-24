@@ -1,5 +1,7 @@
+version: '3.8'
+
 services:
-  postgres:
+  user_management_postgres:
     image: postgres:15
     container_name: user_management_postgres
     environment:
@@ -9,7 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - user_postgres_data:/var/lib/postgresql/data
     networks:
       - teamsync_network
 
@@ -19,16 +21,20 @@ services:
     ports:
       - "8082:8082"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_management_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user_management_postgres:5432/user_management_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      PROJECT_SERVICE_URL: http://project-management-service:8083
+      # Add Kafka configuration
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     depends_on:
-      - postgres
+      - user_management_postgres
     networks:
       - teamsync_network
 
 volumes:
-  postgres_data:
+  user_postgres_data:
 
 networks:
   teamsync_network:
