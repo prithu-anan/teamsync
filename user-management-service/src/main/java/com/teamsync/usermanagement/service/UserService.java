@@ -151,11 +151,13 @@ public class UserService {
         log.info("UserDeletedEvent published successfully for user: {}", user.getId());
     }
 
-    // change needed
     public Users getCurrentUser() {
-        return userRepository.findAll().stream()
-                .findFirst()
-                .orElseThrow(() -> new NotFoundException("No users found in the database"));
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        Users user = userRepository.findByEmail(userEmail);
+        if (user == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
+        return user;
     }
 
     public UserResponseDTO updateDesignation(Long id, DesignationUpdateDto dto) {

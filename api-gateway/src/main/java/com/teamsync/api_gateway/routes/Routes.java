@@ -32,5 +32,19 @@ public class Routes {
                 .route(RequestPredicates.path("/api/users/**"), HandlerFunctions.http("http://user-management-service:8082"))
                 .build();
     }
+
+    @Bean
+    public RouterFunction<ServerResponse> projectManagementService() {
+        return GatewayRouterFunctions.route("project_management_service")
+                .route(RequestPredicates.path("/api/projects/**"), HandlerFunctions.http("http://project-management-service:8083"))
+                .build();
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> taskManagementService() {
+        return GatewayRouterFunctions.route("task_management_service")
+                .route(RequestPredicates.path("/api/tasks/**"), HandlerFunctions.http("http://task-management-service:8089"))
+                .build();
+    }
     
 }

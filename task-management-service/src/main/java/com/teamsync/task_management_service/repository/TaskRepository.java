@@ -2,6 +2,7 @@ package com.teamsync.task_management_service.repository;
 
 import com.teamsync.task_management_service.entity.Tasks;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -31,4 +32,9 @@ public interface TaskRepository extends JpaRepository<Tasks, Long> {
 
     @Query("SELECT t FROM Tasks t WHERE t.assignedTo = :userId ORDER BY t.assignedAt DESC")
     List<Tasks> findTasksAssignedToUser(@Param("userId") Long userId);
+
+    // Method for deleting all tasks by project ID (for cascade deletion)
+    @Modifying
+    @Query("DELETE FROM Tasks t WHERE t.project = :projectId")
+    int deleteByProjectId(@Param("projectId") Long projectId);
 }

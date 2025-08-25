@@ -4,14 +4,17 @@ import com.teamsync.projectmanagementservice.dto.*;
 import com.teamsync.projectmanagementservice.entity.ProjectMembers;
 import com.teamsync.projectmanagementservice.entity.Projects;
 import com.teamsync.projectmanagementservice.exception.NotFoundException;
+import com.teamsync.projectmanagementservice.exception.UnauthorizedException;
 import com.teamsync.projectmanagementservice.mapper.ProjectMapper;
 import com.teamsync.projectmanagementservice.repository.ProjectMemberRepository;
 import com.teamsync.projectmanagementservice.repository.ProjectRepository;
 import com.teamsync.usermanagement.event.UserDeletedEvent;
 import com.teamsync.projectmanagementservice.client.UserClient;
+import com.teamsync.projectmanagementservice.event.ProjectDeletedEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import com.teamsync.projectmanagementservice.response.SuccessResponse;
 
 @Slf4j
 @Service
@@ -33,6 +37,8 @@ public class ProjectService {
     private UserClient userClient;
     @Autowired
     private ProjectMapper projectMapper;
+    @Autowired
+    private KafkaTemplate<String, ProjectDeletedEvent> kafkaTemplate;
 
     @KafkaListener(topics = "user-deleted")
     @Transactional
@@ -67,7 +73,8 @@ public class ProjectService {
     @Transactional
     public void createProject(ProjectCreationDTO createProjectDto, String userEmail) {
         // Get creator user
-        UserResponseDTO creator = userClient.findByEmail(userEmail);
+        SuccessResponse<UserResponseDTO> creatorResponse = userClient.findByEmail(userEmail);
+        UserResponseDTO creator = creatorResponse.getData();
         System.out.println(creator);
         if (creator == null) {
             throw new NotFoundException("User not found with email: " + userEmail);
@@ -89,7 +96,8 @@ public class ProjectService {
                     .stream()
                     .map(memberDto -> {
                         // Validate user exists via userClient
-                        UserResponseDTO user = userClient.findById(memberDto.getUserId());
+                        SuccessResponse<UserResponseDTO> userResponse = userClient.findById(memberDto.getUserId());
+                        UserResponseDTO user = userResponse.getData();
                         if (user == null) {
                             throw new NotFoundException("User not found with id: " + memberDto.getUserId());
                         }
@@ -115,9 +123,21 @@ public class ProjectService {
     }
 
     @Transactional
-    public void updateProject(Long id, ProjectUpdateDTO updateProjectDto) {
+    public void updateProject(Long id, ProjectUpdateDTO updateProjectDto, String userEmail) {
         Projects project = projectsRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Project not found with id: " + id));
+        
+        // Check if the current user is the project creator
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        if (currentUser == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
+        
+        if (!project.getCreatedBy().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Only the project creator can update the project");
+        }
+        
         project.setTitle(updateProjectDto.getTitle());
         project.setDescription(updateProjectDto.getDescription());
         if (updateProjectDto.getMembers() != null) {
@@ -126,7 +146,9 @@ public class ProjectService {
                     .stream()
                     .map(memberDto -> {
                         // Validate user exists via userClient
-                        if (userClient.findById(memberDto.getUserId()) == null) {
+                        SuccessResponse<UserResponseDTO> userResponse = userClient.findById(memberDto.getUserId());
+                        UserResponseDTO user = userResponse.getData();
+                        if (user == null) {
                             throw new NotFoundException("User not found with id: " + memberDto.getUserId());
                         }
 
@@ -147,14 +169,44 @@ public class ProjectService {
     }
 
     @Transactional
-    public void deleteProject(Long id) {
+    public void deleteProject(Long id, String userEmail) {
         if (id == null) {
             throw new IllegalArgumentException("Project ID cannot be null");
         }
-        if (!projectsRepository.existsById(id)) {
-            throw new NotFoundException("Project with ID " + id + " not found");
+        
+        Projects project = projectsRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Project with ID " + id + " not found"));
+        
+        // Check if the current user is the project creator
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        if (currentUser == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
         }
-        projectsRepository.deleteById(id);
+        
+        if (!project.getCreatedBy().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Only the project creator can delete the project");
+        }
+        
+        try {
+            // Delete the project (this will cascade delete project members due to FK constraint)
+            projectsRepository.deleteById(id);
+            log.info("Successfully deleted project with ID: {}", id);
+            
+            // Publish event to notify other services about project deletion
+            ProjectDeletedEvent event = new ProjectDeletedEvent(
+                id, 
+                project.getTitle(), 
+                currentUser.getId(), 
+                java.time.ZonedDateTime.now().toString()
+            );
+            kafkaTemplate.send("project-deleted", event);
+            log.info("Published ProjectDeletedEvent for project ID: {}", id);
+            
+        } catch (Exception e) {
+            log.error("Failed to delete project with ID {}: {}", id, e.getMessage(), e);
+            throw new RuntimeException("Failed to delete project: " + e.getMessage(), e);
+        }
     }
 
     // New member-related methods
@@ -171,13 +223,25 @@ public class ProjectService {
     }
 
     @Transactional
-    public void addMemberToProject(Long projectId, AddMemberDTO addMemberDTO) {
+    public void addMemberToProject(Long projectId, AddMemberDTO addMemberDTO, String userEmail) {
         // Validate project exists
         Projects project = projectsRepository.findById(projectId)
                 .orElseThrow(() -> new NotFoundException("Project not found with id: " + projectId));
 
+        // Check if the current user is the project creator
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        if (currentUser == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
+        
+        if (!project.getCreatedBy().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Only the project creator can add members to the project");
+        }
+
         // Validate user exists
-        UserResponseDTO user = userClient.findById(addMemberDTO.getUserId());
+        SuccessResponse<UserResponseDTO> userResponse = userClient.findById(addMemberDTO.getUserId());
+        UserResponseDTO user = userResponse.getData();
         if (user == null) {
             throw new NotFoundException("User not found with id: " + addMemberDTO.getUserId());
         }
@@ -211,10 +275,22 @@ public class ProjectService {
     }
 
     @Transactional
-    public void updateMemberRole(Long projectId, Long userId, UpdateMemberRoleDTO updateMemberRoleDTO) {
+    public void updateMemberRole(Long projectId, Long userId, UpdateMemberRoleDTO updateMemberRoleDTO, String userEmail) {
         ProjectMembers member = projectMembersRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new NotFoundException(
                         "Project member not found with projectId: " + projectId + " and userId: " + userId));
+
+        // Check if the current user is the project creator
+        Projects project = member.getProject();
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        if (currentUser == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
+        
+        if (!project.getCreatedBy().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Only the project creator can update member roles");
+        }
 
         // Validate role
         ProjectMembers.ProjectRole newRole;
@@ -234,11 +310,23 @@ public class ProjectService {
     }
 
     @Transactional
-    public void removeMemberFromProject(Long projectId, Long userId) {
+    public void removeMemberFromProject(Long projectId, Long userId, String userEmail) {
         ProjectMembers member = projectMembersRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new NotFoundException(
                         "Project member not found with projectId: " + projectId + " and userId: " + userId));
-        ;
+        
+        // Check if the current user is the project creator
+        Projects project = member.getProject();
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        if (currentUser == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
+        
+        if (!project.getCreatedBy().equals(currentUser.getId())) {
+            throw new UnauthorizedException("Only the project creator can remove members from the project");
+        }
+        
         projectMembersRepository.delete(member);
     }
 
@@ -262,8 +350,29 @@ public class ProjectService {
                 .collect(Collectors.toList());
     }
 
+    public List<UserProjectDTO> getCurrentUserProjects(String userEmail) {
+        // Get current user by email
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        if (currentUser == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
+        
+        return getUserProjects(currentUser.getId());
+    }
+
     public boolean hasUserCreatedProjects(Long userId) {
         return projectsRepository.existsByCreatedBy(userId);
+    }
+
+    public boolean hasCurrentUserCreatedProjects(String userEmail) {
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        if (currentUser == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
+        
+        return hasUserCreatedProjects(currentUser.getId());
     }
 
     public boolean existsById(Long id) {

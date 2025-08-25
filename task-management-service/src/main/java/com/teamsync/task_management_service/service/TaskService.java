@@ -18,9 +18,12 @@ import com.teamsync.task_management_service.repository.TaskRepository;
 import com.teamsync.task_management_service.repository.TaskStatusHistoryRepository;
 import com.teamsync.task_management_service.response.SuccessResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.kafka.annotation.KafkaListener;
+import com.teamsync.task_management_service.event.ProjectDeletedEvent;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -30,6 +33,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class TaskService {
 
     private final TaskRepository tasksRepository;
@@ -57,7 +61,7 @@ public class TaskService {
                 .collect(Collectors.toList());
     }
 
-    public void createTask(TaskCreationDTO createDto) {
+    public void createTask(TaskCreationDTO createDto, String userEmail) {
         if (createDto == null) {
             throw new IllegalArgumentException("Task creation data cannot be null");
         }
@@ -75,21 +79,28 @@ public class TaskService {
         task.setAssignedAt(ZonedDateTime.now());
 
         // Set project (now guaranteed to be not null)
-        ProjectDTO project = projectClient.findById(createDto.getProjectId());
-        if (project == null) {
+        SuccessResponse<ProjectDTO> projectResponse = projectClient.findById(createDto.getProjectId());
+        if (projectResponse == null || projectResponse.getData() == null) {
             throw new NotFoundException("Project not found with id: " + createDto.getProjectId());
         }
+        ProjectDTO project = projectResponse.getData();
         task.setProject(project.getId());
 
         // Set assigned to user if provided
         if (createDto.getAssignedTo() != null) {
-            UserResponseDTO assignedUser = userClient.findById(createDto.getAssignedTo());
-            if (assignedUser == null) {
+            SuccessResponse<UserResponseDTO> assignedUserResponse = userClient.findById(createDto.getAssignedTo());
+            if (assignedUserResponse == null || assignedUserResponse.getData() == null) {
                 throw new NotFoundException("User not found with id: " + createDto.getAssignedTo());
             }
+            UserResponseDTO assignedUser = assignedUserResponse.getData();
             task.setAssignedTo(assignedUser.getId());
-            // Set the assignedBy to the same user for now (or get from security context)
-            task.setAssignedBy(userClient.getCurrentUser().getId());
+            // Set the assignedBy to the current user from security context
+            SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+            if (currentUserResponse == null || currentUserResponse.getData() == null) {
+                throw new NotFoundException("Current user not found with email: " + userEmail);
+            }
+            UserResponseDTO currentUser = currentUserResponse.getData();
+            task.setAssignedBy(currentUser.getId());
         }
 
         Tasks parentTask = null;
@@ -141,7 +152,7 @@ public class TaskService {
         }
     }
 
-    public void updateTask(Long id, TaskUpdateDTO updateDto) {
+    public void updateTask(Long id, TaskUpdateDTO updateDto, String userEmail) {
         if (id == null) {
             throw new IllegalArgumentException("Task ID cannot be null");
         }
@@ -152,6 +163,11 @@ public class TaskService {
 
         Tasks existingTask = tasksRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Task not found with id: " + id));
+
+        // Check if the current user can manage the task
+        if (!canManageTask(id, userEmail)) {
+            throw new UnauthorizedException("You are not authorized to update this task");
+        }
 
         // Validate title if provided
         if (updateDto.getTitle() != null && updateDto.getTitle().trim().isEmpty()) {
@@ -186,13 +202,17 @@ public class TaskService {
 
     }
 
-    public void deleteTask(Long id) {
+    public void deleteTask(Long id, String userEmail) {
         if (id == null) {
             throw new IllegalArgumentException("Task ID cannot be null");
         }
 
-        if (!tasksRepository.existsById(id)) {
-            throw new NotFoundException("Task not found with id: " + id);
+        Tasks task = tasksRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Task not found with id: " + id));
+
+        // Check if the current user can manage the task
+        if (!canManageTask(id, userEmail)) {
+            throw new UnauthorizedException("You are not authorized to delete this task");
         }
 
         try {
@@ -202,13 +222,61 @@ public class TaskService {
         }
     }
 
+    /**
+     * Delete all tasks associated with a specific project.
+     * This method is called when a project is deleted to maintain data integrity.
+     * 
+     * @param projectId the ID of the project whose tasks should be deleted
+     */
+    @Transactional
+    public void deleteTasksByProjectId(Long projectId) {
+        if (projectId == null) {
+            throw new IllegalArgumentException("Project ID cannot be null");
+        }
+        
+        try {
+            log.info("Deleting all tasks for project ID: {}", projectId);
+            int deletedCount = tasksRepository.deleteByProjectId(projectId);
+            log.info("Successfully deleted {} tasks for project ID: {}", deletedCount, projectId);
+        } catch (Exception e) {
+            log.error("Failed to delete tasks for project ID {}: {}", projectId, e.getMessage(), e);
+            throw new RuntimeException("Failed to delete tasks for project: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Kafka listener for ProjectDeletedEvent.
+     * Automatically deletes all tasks when a project is deleted.
+     * 
+     * @param event the ProjectDeletedEvent containing project deletion information
+     */
+    @KafkaListener(
+        topics = "project-deleted", 
+        groupId = "task-service"
+    )
+    @Transactional
+    public void handleProjectDeletedEvent(ProjectDeletedEvent event) {
+        Long projectId = event.getProjectId();
+        log.info("Received ProjectDeletedEvent for project ID: {}, title: {}", projectId, event.getProjectTitle());
+        
+        try {
+            deleteTasksByProjectId(projectId);
+            log.info("Successfully processed ProjectDeletedEvent for project ID: {}", projectId);
+        } catch (Exception e) {
+            log.error("Failed to process ProjectDeletedEvent for project ID {}: {}", projectId, e.getMessage(), e);
+            // In a production environment, you might want to implement retry logic or dead letter queue
+            throw e;
+        }
+    }
+
     public List<TaskResponseDTO> getTasksByProjectId(Long projectId) {
         if (projectId == null) {
             throw new IllegalArgumentException("Project ID cannot be null");
         }
 
         // Verify project exists
-        if (!projectClient.existsById(projectId)) {
+        SuccessResponse<Boolean> projectExistsResponse = projectClient.existsById(projectId);
+        if (projectExistsResponse == null || projectExistsResponse.getData() == null || !projectExistsResponse.getData()) {
             throw new NotFoundException("Project not found with id: " + projectId);
         }
 
@@ -224,7 +292,8 @@ public class TaskService {
         }
 
         // Verify project exists
-        if (!projectClient.existsById(projectId)) {
+        SuccessResponse<Boolean> projectExistsResponse = projectClient.existsById(projectId);
+        if (projectExistsResponse == null || projectExistsResponse.getData() == null || !projectExistsResponse.getData()) {
             throw new NotFoundException("Project not found with id: " + projectId);
         }
 
@@ -239,19 +308,21 @@ public class TaskService {
     private void handleRelationshipUpdates(TaskUpdateDTO updateDto, Tasks existingTask) {
         // Update assigned to user if provided
         if (updateDto.getAssignedTo() != null) {
-            UserResponseDTO assignedUser = userClient.findById(updateDto.getAssignedTo());
-            if (assignedUser == null) {
+            SuccessResponse<UserResponseDTO> assignedUserResponse = userClient.findById(updateDto.getAssignedTo());
+            if (assignedUserResponse == null || assignedUserResponse.getData() == null) {
                 throw new NotFoundException("User not found with id: " + updateDto.getAssignedTo());
             }
+            UserResponseDTO assignedUser = assignedUserResponse.getData();
             existingTask.setAssignedTo(assignedUser.getId());
         }
 
         // Update project if provided
         if (updateDto.getProjectId() != null) {
-            ProjectDTO project = projectClient.findById(updateDto.getProjectId());
-            if (project == null) {
+            SuccessResponse<ProjectDTO> projectResponse = projectClient.findById(updateDto.getProjectId());
+            if (projectResponse == null || projectResponse.getData() == null) {
                 throw new NotFoundException("Project not found with id: " + updateDto.getProjectId());
             }
+            ProjectDTO project = projectResponse.getData();
             existingTask.setProject(project.getId());
         }
 
@@ -348,13 +419,13 @@ public class TaskService {
         return true;
     }
 
-    public SuccessResponse<TaskResponseDTO> updateTaskStatus(Long taskId, TaskStatusHistoryDTO dto) {
+    public SuccessResponse<TaskResponseDTO> updateTaskStatus(Long taskId, TaskStatusHistoryDTO dto, String userEmail) {
 
         Tasks task = tasksRepository.findById(taskId)
                 .orElseThrow(() -> new NotFoundException("Task not found with id: " + taskId));
 
         if (Tasks.TaskStatus.valueOf(dto.getStatus()).equals(Tasks.TaskStatus.completed)
-                && !canManageTask(taskId)) {
+                && !canManageTask(taskId, userEmail)) {
             throw new UnauthorizedException("You are not authorized to update the status as completed");
         }
 
@@ -364,17 +435,24 @@ public class TaskService {
                     "All the children of the task must be completed before updating the status to completed");
         }
 
-        if (task.getStatus().equals(Tasks.TaskStatus.completed) && !canManageTask(taskId)) {
+        if (task.getStatus().equals(Tasks.TaskStatus.completed) && !canManageTask(taskId, userEmail)) {
             throw new UnauthorizedException("You are not authorized to revert back a completed task");
         }
 
         task.setStatus(Tasks.TaskStatus.valueOf(dto.getStatus()));
         tasksRepository.save(task);
 
+        // Get current user from email
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        if (currentUserResponse == null || currentUserResponse.getData() == null) {
+            throw new NotFoundException("Current user not found with email: " + userEmail);
+        }
+        UserResponseDTO currentUser = currentUserResponse.getData();
+
         TaskStatusHistory statusHistory = TaskStatusHistory.builder()
                 .task(task)
                 .status(task.getStatus())
-                .changedBy(userClient.getCurrentUser().getId())
+                .changedBy(currentUser.getId())
                 .changedAt(ZonedDateTime.now())
                 .comment(dto.getComment())
                 .build();
@@ -387,17 +465,26 @@ public class TaskService {
                 .build();
     }
 
-    public List<TaskResponseDTO> getUserInvolvedTasks() {
-
-        UserResponseDTO currentUser = userClient.getCurrentUser();
+    public List<TaskResponseDTO> getUserInvolvedTasks(String userEmail) {
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        if (currentUserResponse == null || currentUserResponse.getData() == null) {
+            throw new NotFoundException("Current user not found with email: " + userEmail);
+        }
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        
         List<Tasks> tasks = tasksRepository.findUserInvolvedTasks(currentUser.getId());
         return tasks.stream()
                 .map(this::buildTaskResponseDto)
                 .collect(Collectors.toList());
     }
 
-    public List<TaskResponseDTO> getTasksAssignedToUser() {
-        UserResponseDTO currentUser = userClient.getCurrentUser();
+    public List<TaskResponseDTO> getTasksAssignedToUser(String userEmail) {
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        if (currentUserResponse == null || currentUserResponse.getData() == null) {
+            throw new NotFoundException("Current user not found with email: " + userEmail);
+        }
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        
         List<Tasks> tasks = tasksRepository.findTasksAssignedToUser(currentUser.getId());
         return tasks.stream()
                 .map(this::buildTaskResponseDto)
@@ -409,7 +496,7 @@ public class TaskService {
      * This replicates the authorization logic from the monolithic
      * ProjectAuthorizationService
      */
-    private boolean canManageTask(Long taskId) {
+    private boolean canManageTask(Long taskId, String userEmail) {
         try {
             // Get the task to find its project
             Tasks task = tasksRepository.findById(taskId)
@@ -417,14 +504,19 @@ public class TaskService {
 
             Long projectId = task.getProject(); // This is now a Long in your microservice
 
-            // Get current user
-            UserResponseDTO currentUser = userClient.getCurrentUser();
+            // Get current user from email
+            SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+            if (currentUserResponse == null || currentUserResponse.getData() == null) {
+                return false;
+            }
+            UserResponseDTO currentUser = currentUserResponse.getData();
 
             // Get project details
-            ProjectDTO project = projectClient.findById(projectId);
-            if (project == null) {
+            SuccessResponse<ProjectDTO> projectResponse = projectClient.findById(projectId);
+            if (projectResponse == null || projectResponse.getData() == null) {
                 throw new NotFoundException("Project not found");
             }
+            ProjectDTO project = projectResponse.getData();
 
             // Check if user is project creator (owner)
             if (project.getCreatedBy().equals(currentUser.getId())) {

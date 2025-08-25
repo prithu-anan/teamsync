@@ -19,9 +19,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 
 @RestController
-@RequestMapping("/projects")
+@RequestMapping({"/projects", "/api/projects"})
 public class ProjectController {
 
     @Autowired
@@ -59,9 +60,7 @@ public class ProjectController {
 
     @PostMapping
     public ResponseEntity<SuccessResponse<Void>> createProject(@Valid @RequestBody ProjectCreationDTO dto) {
-        // String userEmail =
-        // SecurityContextHolder.getContext().getAuthentication().getName();
-        String userEmail = "a@example.com";
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         projectService.createProject(dto, userEmail);
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.CREATED.value())
@@ -74,7 +73,8 @@ public class ProjectController {
     @PutMapping("/{id}")
     public ResponseEntity<SuccessResponse<Void>> updateProject(@PathVariable Long id,
             @Valid @RequestBody ProjectUpdateDTO dto) {
-        projectService.updateProject(id, dto);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.updateProject(id, dto, userEmail);
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
                 .status(HttpStatus.OK)
@@ -84,9 +84,9 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{id}")
-    // @PreAuthorize("@projectAuthorizationService.isProjectAdminOrOwner(#id)")
     public ResponseEntity<SuccessResponse<Void>> deleteProject(@PathVariable Long id) {
-        projectService.deleteProject(id);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.deleteProject(id, userEmail);
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.NO_CONTENT.value())
                 .status(HttpStatus.OK)
@@ -108,10 +108,10 @@ public class ProjectController {
     }
 
     @PostMapping("/{id}/members")
-    // @PreAuthorize("@projectAuthorizationService.isProjectAdminOrOwner(#id)")
     public ResponseEntity<SuccessResponse<Void>> addMemberToProject(
             @PathVariable Long id, @Valid @RequestBody AddMemberDTO dto) {
-        projectService.addMemberToProject(id, dto);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.addMemberToProject(id, dto, userEmail);
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.CREATED.value())
                 .status(HttpStatus.CREATED)
@@ -121,12 +121,12 @@ public class ProjectController {
     }
 
     @PutMapping("/{projectId}/members/{userId}")
-    // @PreAuthorize("@projectAuthorizationService.isProjectAdminOrOwner(#projectId)")
     public ResponseEntity<SuccessResponse<Void>> updateMemberRole(
             @PathVariable Long projectId,
             @PathVariable Long userId,
             @Valid @RequestBody UpdateMemberRoleDTO dto) {
-        projectService.updateMemberRole(projectId, userId, dto);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.updateMemberRole(projectId, userId, dto, userEmail);
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
                 .status(HttpStatus.OK)
@@ -136,10 +136,10 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{projectId}/members/{userId}")
-    // @PreAuthorize("@projectAuthorizationService.isProjectAdminOrOwner(#projectId)")
     public ResponseEntity<SuccessResponse<Void>> removeMemberFromProject(@PathVariable Long projectId,
             @PathVariable Long userId) {
-        projectService.removeMemberFromProject(projectId, userId);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        projectService.removeMemberFromProject(projectId, userId, userEmail);
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.NO_CONTENT.value())
                 .status(HttpStatus.OK)
@@ -148,42 +148,46 @@ public class ProjectController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<UserProjectDTO>> getUserProjects(@PathVariable Long userId) {
-        List<UserProjectDTO> userProjects = projectService.getUserProjects(userId);
-        System.out.println("User Projects: " + userProjects);
+    @GetMapping("/user/current")
+    public ResponseEntity<List<UserProjectDTO>> getCurrentUserProjects() {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<UserProjectDTO> userProjects = projectService.getCurrentUserProjects(userEmail);
         return ResponseEntity.ok(userProjects);
     }
 
-    @GetMapping("/user/{userId}/created")
-    public ResponseEntity<Boolean> hasUserCreatedProjects(@PathVariable Long userId) {
-        boolean hasCreatedProjects = projectService.hasUserCreatedProjects(userId);
+    @GetMapping("/user/current/created")
+    public ResponseEntity<Boolean> hasCurrentUserCreatedProjects() {
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean hasCreatedProjects = projectService.hasCurrentUserCreatedProjects(userEmail);
         return ResponseEntity.ok(hasCreatedProjects);
     }
 
     @GetMapping("/{id}/tasks")
     public ResponseEntity<SuccessResponse<List<TaskResponseDTO>>> getProjectTasks(@PathVariable Long id) {
-        List<TaskResponseDTO> tasks = taskClient.getTasksByProjectId(id);
-        SuccessResponse<List<TaskResponseDTO>> response = SuccessResponse.<List<TaskResponseDTO>>builder()
-                .code(HttpStatus.OK.value())
-                .status(HttpStatus.OK)
-                .message("Project tasks retrieved successfully")
-                .data(tasks)
-                .build();
-        return ResponseEntity.ok(response);
+        SuccessResponse<List<TaskResponseDTO>> taskResponse = taskClient.getTasksByProjectId(id);
+        if (taskResponse == null || taskResponse.getData() == null) {
+            return ResponseEntity.ok(SuccessResponse.<List<TaskResponseDTO>>builder()
+                    .code(HttpStatus.OK.value())
+                    .status(HttpStatus.OK)
+                    .message("No tasks found for project")
+                    .data(Collections.emptyList())
+                    .build());
+        }
+        return ResponseEntity.ok(taskResponse);
     }
 
     @GetMapping("/{id}/kanban")
     public ResponseEntity<SuccessResponse<List<TaskResponseDTO>>> getProjectKanban(@PathVariable Long id) {
-        List<TaskResponseDTO> kanbanData = taskClient.getKanbanBoard(id);
-
-        SuccessResponse<List<TaskResponseDTO>> response = SuccessResponse.<List<TaskResponseDTO>>builder()
-                .code(HttpStatus.OK.value())
-                .status(HttpStatus.OK)
-                .message("Kanban board data retrieved successfully")
-                .data(kanbanData)
-                .build();
-        return ResponseEntity.ok(response);
+        SuccessResponse<List<TaskResponseDTO>> kanbanResponse = taskClient.getKanbanBoard(id);
+        if (kanbanResponse == null || kanbanResponse.getData() == null) {
+            return ResponseEntity.ok(SuccessResponse.<List<TaskResponseDTO>>builder()
+                    .code(HttpStatus.OK.value())
+                    .status(HttpStatus.OK)
+                    .message("No kanban data found for project")
+                    .data(Collections.emptyList())
+                    .build());
+        }
+        return ResponseEntity.ok(kanbanResponse);
     }
 
     @GetMapping("/{id}/exists")

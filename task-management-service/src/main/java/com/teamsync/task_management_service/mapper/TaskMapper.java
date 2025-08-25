@@ -39,6 +39,7 @@ public interface TaskMapper {
     @Mapping(source = "status", target = "status", qualifiedByName = "stringToTaskStatus")
     @Mapping(source = "priority", target = "priority", qualifiedByName = "stringToTaskPriority")
     @Mapping(source = "aiPriority", target = "aiPriority", qualifiedByName = "stringToTaskPriority")
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntityFromDto(TaskUpdateDTO dto, @MappingTarget Tasks entity);
 
     @Named("stringToTaskStatus")

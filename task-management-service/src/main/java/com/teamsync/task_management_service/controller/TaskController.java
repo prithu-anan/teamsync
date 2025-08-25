@@ -10,12 +10,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/tasks")
+@RequestMapping({"/tasks", "/api/tasks"})
 @RequiredArgsConstructor
 public class TaskController {
 
@@ -23,8 +24,8 @@ public class TaskController {
 
     @GetMapping("/user/involved")
     public ResponseEntity<SuccessResponse<List<TaskResponseDTO>>> getUserInvolvedTasks() {
-
-        List<TaskResponseDTO> tasks = tasksService.getUserInvolvedTasks();
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<TaskResponseDTO> tasks = tasksService.getUserInvolvedTasks(userEmail);
 
         SuccessResponse<List<TaskResponseDTO>> response = SuccessResponse.<List<TaskResponseDTO>>builder()
                 .code(HttpStatus.OK.value())
@@ -38,7 +39,8 @@ public class TaskController {
 
     @GetMapping("/user/assigned")
     public ResponseEntity<SuccessResponse<List<TaskResponseDTO>>> getTasksAssignedToUser() {
-        List<TaskResponseDTO> tasks = tasksService.getTasksAssignedToUser();
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<TaskResponseDTO> tasks = tasksService.getTasksAssignedToUser(userEmail);
 
         SuccessResponse<List<TaskResponseDTO>> response = SuccessResponse.<List<TaskResponseDTO>>builder()
                 .code(HttpStatus.OK.value())
@@ -92,11 +94,9 @@ public class TaskController {
     }
 
     @PostMapping
-    // Removed @PreAuthorize annotation - authorization logic is now handled in the
-    // service layer through client calls
     public ResponseEntity<SuccessResponse<Void>> createTask(@Valid @RequestBody TaskCreationDTO createDto) {
-
-        tasksService.createTask(createDto);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        tasksService.createTask(createDto, userEmail);
 
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.CREATED.value())
@@ -110,7 +110,8 @@ public class TaskController {
     @PutMapping("/{id}")
     public ResponseEntity<SuccessResponse<Void>> updateTask(@PathVariable Long id,
             @Valid @RequestBody TaskUpdateDTO updateDto) {
-        tasksService.updateTask(id, updateDto);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        tasksService.updateTask(id, updateDto, userEmail);
 
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.OK.value())
@@ -122,11 +123,9 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    // Removed @PreAuthorize annotation - authorization logic is now handled in the
-    // service layer through client calls
     public ResponseEntity<SuccessResponse<Void>> deleteTask(@PathVariable Long id) {
-
-        tasksService.deleteTask(id);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        tasksService.deleteTask(id, userEmail);
 
         SuccessResponse<Void> response = SuccessResponse.<Void>builder()
                 .code(HttpStatus.NO_CONTENT.value())
@@ -137,11 +136,13 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+
+
     @PutMapping("/status/{id}")
     public ResponseEntity<SuccessResponse<TaskResponseDTO>> updateTaskStatus(@PathVariable Long id,
             @RequestBody TaskStatusHistoryDTO dto) {
-
-        SuccessResponse<TaskResponseDTO> response = tasksService.updateTaskStatus(id, dto);
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        SuccessResponse<TaskResponseDTO> response = tasksService.updateTaskStatus(id, dto, userEmail);
 
         return ResponseEntity.ok(response);
     }

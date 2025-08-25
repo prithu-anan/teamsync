@@ -23,7 +23,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/users")
+@RequestMapping({"/users", "/api/users"})
 @RequiredArgsConstructor
 public class UserController {
 
@@ -163,6 +163,18 @@ public class UserController {
                 .build();
         System.out.println("Response: " + response);
         return ResponseEntity.ok(response   );
+    }
+
+    @GetMapping("/email/{email}")
+    public ResponseEntity<SuccessResponse<UserResponseDTO>> findByEmail(@PathVariable("email") String email) {
+        UserResponseDTO user = userService.findByEmailProject(email);
+        SuccessResponse<UserResponseDTO> response = SuccessResponse.<UserResponseDTO>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("User retrieved successfully by email")
+                .data(user)
+                .build();
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/current")

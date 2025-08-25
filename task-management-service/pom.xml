@@ -137,6 +137,25 @@
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
 
+        <!-- JWT Dependencies -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.3</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.3</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.3</version>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- Kafka Testing -->
         <dependency>
             <groupId>org.springframework.kafka</groupId>
@@ -159,26 +178,6 @@
 
     <build>
         <plugins>
-            <!-- Avro Plugin -->
-            <plugin>
-                <groupId>org.apache.avro</groupId>
-                <artifactId>avro-maven-plugin</artifactId>
-                <version>1.11.3</version>
-                <executions>
-                    <execution>
-                        <id>schemas</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>schema</goal>
-                        </goals>
-                        <configuration>
-                            <sourceDirectory>${project.basedir}/src/main/resources/avro</sourceDirectory>
-                            <outputDirectory>${project.basedir}/src/main/java/</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
             <!-- Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

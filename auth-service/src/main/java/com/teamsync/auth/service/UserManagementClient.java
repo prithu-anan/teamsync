@@ -35,7 +35,7 @@ public class UserManagementClient {
         
         while (retryCount < maxRetries) {
             try {
-                String url = userManagementServiceUrl + "/api/users";
+                String url = userManagementServiceUrl + "/users";
                 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -99,7 +99,7 @@ public class UserManagementClient {
         
         while (retryCount < maxRetries) {
             try {
-                String url = userManagementServiceUrl + "/api/users/profile";
+                String url = userManagementServiceUrl + "/users/profile";
                 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -151,7 +151,7 @@ public class UserManagementClient {
         
         while (retryCount < maxRetries) {
             try {
-                String url = userManagementServiceUrl + "/api/users/" + userId;
+                String url = userManagementServiceUrl + "/users/" + userId;
                 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);

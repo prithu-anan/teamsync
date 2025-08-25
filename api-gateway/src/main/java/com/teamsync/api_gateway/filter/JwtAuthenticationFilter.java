@@ -41,21 +41,59 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
             
-            if (StringUtils.hasText(jwt) && jwtProvider.validateToken(jwt)) {
-                // Use the validate endpoint to check both token validity and blacklist status
-                Boolean isValid = authServiceClient.validateToken(jwt).block();
+            if (StringUtils.hasText(jwt)) {
+                log.debug("JWT token found in request, length: {}", jwt.length());
+                // Log first and last few characters for debugging (without exposing full token)
+                if (jwt.length() > 20) {
+                    log.debug("JWT token preview: {}...{}", jwt.substring(0, 10), jwt.substring(jwt.length() - 10));
+                } else {
+                    log.debug("JWT token: {}", jwt);
+                }
                 
-                if (isValid != null && isValid) {
+                if (jwtProvider.validateToken(jwt)) {
+                    log.debug("JWT token structure is valid");
+                    
+                    // First, validate locally for basic JWT structure
                     String email = jwtProvider.getEmailFromToken(jwt);
                     
-                    // Create authentication token
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        email, null, Collections.singletonList(new SimpleGrantedAuthority("USER")));
-                    
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    if (email != null && !email.trim().isEmpty()) {
+                        log.debug("Email extracted from token: {}", email);
+                        
+                        // Now check with auth service for blacklist status and additional validation
+                        try {
+                            log.debug("Calling auth service to validate token and check blacklist");
+                            Boolean isValid = authServiceClient.validateToken(jwt).block();
+                            
+                            if (isValid != null && isValid) {
+                                // Create authentication token
+                                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                    email, null, Collections.singletonList(new SimpleGrantedAuthority("USER")));
+                                
+                                SecurityContextHolder.getContext().setAuthentication(authentication);
+                                log.debug("Authentication set for user: {} (token validated with blacklist check)", email);
+                            } else {
+                                log.warn("Token validation failed or token is blacklisted for user: {}", email);
+                            }
+                        } catch (Exception authServiceEx) {
+                            log.warn("Auth service validation failed for user: {}, falling back to local validation. Error: {}", 
+                                    email, authServiceEx.getMessage());
+                            
+                            // Fallback: if auth service is unavailable, still allow the request
+                            // but log the security risk
+                            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                email, null, Collections.singletonList(new SimpleGrantedAuthority("USER")));
+                            
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                            log.warn("Authentication set with fallback (no blacklist check) for user: {}", email);
+                        }
+                    } else {
+                        log.warn("Could not extract email from token");
+                    }
                 } else {
-                    log.warn("Invalid or blacklisted token used in API Gateway: {}", jwt);
+                    log.warn("JWT token structure is invalid");
                 }
+            } else {
+                log.debug("No JWT token found in request");
             }
         } catch (Exception ex) {
             log.error("Could not set user authentication in security context", ex);
