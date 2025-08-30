@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  feed_management_postgres:
+    image: postgres:15
+    container_name: feed_management_postgres
+    environment:
+      POSTGRES_DB: feed_management_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - feed_postgres_data:/var/lib/postgresql/data
+    networks:
+      - teamsync_network
+
+  feed-management-service:
+    build: .
+    container_name: feed_management_service
+    ports:
+      - "8090:8090"
+    env_file:
+      - .env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://feed_management_postgres:5432/feed_management_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      # PROJECT_SERVICE_URL: http://project-management-service:8083
+      # # Add Kafka configuration
+      # SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      # SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    depends_on:
+      - feed_management_postgres
+    networks:
+      - teamsync_network
+
+volumes:
+  feed_postgres_data:
+
+networks:
+  teamsync_network:
+    external: true
