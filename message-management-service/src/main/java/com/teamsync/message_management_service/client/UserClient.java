@@ -152,3 +152,28 @@ public class UserClient {
         return users.get(1L);
     }
 }
+
+
+// package com.teamsync.message_management_service.client;
+
+// import com.teamsync.message_management_service.dto.UserResponseDTO;
+// import com.teamsync.message_management_service.response.SuccessResponse;
+// import org.springframework.cloud.openfeign.FeignClient;
+// import org.springframework.web.bind.annotation.GetMapping;
+// import org.springframework.web.bind.annotation.PathVariable;
+
+// @FeignClient(name = "user-service", url = "${user-service.url}")
+// public interface UserClient {
+
+//     @GetMapping("/users/{userId}")
+//     SuccessResponse<UserResponseDTO> findById(@PathVariable("userId") Long userId);
+
+//     @GetMapping("/users/{userId}/exists")
+//     SuccessResponse<Boolean> existsById(@PathVariable("userId") Long userId);
+
+//     @GetMapping("/users/email/{email}")
+//     SuccessResponse<UserResponseDTO> findByEmail(@PathVariable("email") String email);
+
+//     @GetMapping("/users/current")
+//     SuccessResponse<UserResponseDTO> getCurrentUser();
+// }

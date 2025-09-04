@@ -219,3 +219,22 @@ public class ProjectClient {
         return Optional.ofNullable(projects.get(id));
     }
 }
+
+
+// package com.teamsync.message_management_service.client;
+
+// import com.teamsync.message_management_service.dto.ProjectDTO;
+// import com.teamsync.message_management_service.response.SuccessResponse;
+// import org.springframework.cloud.openfeign.FeignClient;
+// import org.springframework.web.bind.annotation.GetMapping;
+// import org.springframework.web.bind.annotation.PathVariable;
+
+// @FeignClient(name = "project-service", url = "${project-service.url}")
+// public interface ProjectClient {
+
+//     @GetMapping("/projects/{id}")
+//     SuccessResponse<ProjectDTO> findById(@PathVariable("id") Long id);
+
+//     @GetMapping("/projects/{id}/exists")
+//     SuccessResponse<Boolean> existsById(@PathVariable("id") Long id);
+// }

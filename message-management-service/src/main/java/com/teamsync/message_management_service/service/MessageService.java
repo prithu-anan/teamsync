@@ -68,7 +68,7 @@ public class MessageService {
     }
 
     @Transactional
-    public void createChannelMessage(Long channelId, MessageCreationDTO requestDto) {
+    public MessageResponseDTO createChannelMessage(Long channelId, MessageCreationDTO requestDto) {
         // Validate channel exists
         Channels channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new NotFoundException("Channel with ID " + channelId + " not found"));
@@ -106,14 +106,15 @@ public class MessageService {
                 .recipient(recipient.getId())
                 .threadParent(threadParent)
                 .timestamp(ZonedDateTime.now())
+                .isPinned(requestDto.isPinned() != null ? requestDto.isPinned() : false) // Add this line
                 .build();
 
-        messageRepository.save(message);
-        // return messageMapper.toDto(savedMessage);
+        Messages savedMessage = messageRepository.save(message);
+        return messageMapper.toDto(savedMessage);
     }
 
     @Transactional
-    public void createMessageWithFiles(MessageCreationDTO requestDto) {
+    public List<MessageResponseDTO> createMessageWithFiles(MessageCreationDTO requestDto) {
 
         UserResponseDTO sender = userClient.getCurrentUser();
         if (sender == null) {
@@ -165,13 +166,19 @@ public class MessageService {
                     .timestamp(ZonedDateTime.now())
                     .fileUrl(fileUrl)
                     .fileType(fileType)
+                    .isPinned(requestDto.isPinned() != null ? requestDto.isPinned() : false) // Add this line
                     .build();
 
             messagesToSave.add(message);
         }
 
         // Save all messages in bulk
-        messageRepository.saveAll(messagesToSave);
+        List<Messages> savedMessages = messageRepository.saveAll(messagesToSave);
+
+        // Convert to DTOs and return
+        return savedMessages.stream()
+                .map(messageMapper::toDto)
+                .collect(Collectors.toList());
     }
 
     public MessageResponseDTO getChannelMessage(Long channelId, Long messageId) {
@@ -189,7 +196,8 @@ public class MessageService {
     }
 
     @Transactional
-    public void updateChannelMessage(Long channelId, Long messageId, MessageUpdateDTO requestDto, String userEmail) {
+    public MessageResponseDTO updateChannelMessage(Long channelId, Long messageId, MessageUpdateDTO requestDto,
+            String userEmail) {
         // Validate channel exists
         if (!channelRepository.existsById(channelId)) {
             throw new NotFoundException("Channel with ID " + channelId + " not found");
@@ -225,10 +233,13 @@ public class MessageService {
         existingMessage.setRecipient(recipient.getId());
         existingMessage.setContent(requestDto.content());
         // message.setThreadParent(threadParent);
-
+        // Add this line for isPinned update
+        if (requestDto.isPinned() != null) {
+            existingMessage.setIsPinned(requestDto.isPinned());
+        }
         // Save updated message
-        messageRepository.save(existingMessage);
-
+        Messages updatedMessage = messageRepository.save(existingMessage);
+        return messageMapper.toDto(updatedMessage);
     }
 
     @Transactional

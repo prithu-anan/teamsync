@@ -31,3 +31,7 @@ CREATE TABLE Reactions (
 ALTER TABLE messages
 ADD COLUMN file_url TEXT,
 ADD COLUMN file_type VARCHAR(255);
+
+-- Add is_pinned column to Messages table
+ALTER TABLE Messages 
+ADD COLUMN is_pinned BOOLEAN NOT NULL DEFAULT FALSE;

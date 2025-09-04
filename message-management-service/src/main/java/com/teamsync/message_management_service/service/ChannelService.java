@@ -46,7 +46,7 @@ public class ChannelService {
     private ChannelMapper channelMapper;
 
     @Transactional
-    public void createChannel(ChannelRequestDTO requestDto) {
+    public ChannelResponseDTO createChannel(ChannelRequestDTO requestDto) {
         // Validate project existence
         ProjectDTO project = projectClient.findById(requestDto.projectId())
                 .orElseThrow(() -> new NotFoundException("Project with ID " + requestDto.projectId() + " not found"));
@@ -60,7 +60,9 @@ public class ChannelService {
         }
         Channels channel = channelMapper.toEntity(requestDto);
         channel.setProject(project.getId());
-        channelRepository.save(channel);
+        Channels savedChannel = channelRepository.save(channel);
+
+        return channelMapper.toDto(savedChannel);
     }
 
     public ChannelResponseDTO getChannelById(Long id) {
@@ -78,7 +80,7 @@ public class ChannelService {
     }
 
     @Transactional
-    public void updateChannel(Long id, ChannelUpdateDTO dto) {
+    public ChannelResponseDTO updateChannel(Long id, ChannelUpdateDTO dto) {
         Channels existing = channelRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Channel not found: " + id));
 
@@ -92,7 +94,10 @@ public class ChannelService {
         }
         channelMapper.updateEntityFromDto(dto, existing);
         existing.setProject(project.getId());
-        channelRepository.save(existing);
+        // channelRepository.save(existing);
+        Channels updatedChannel = channelRepository.save(existing);
+
+        return channelMapper.toDto(updatedChannel);
     }
 
     @Transactional

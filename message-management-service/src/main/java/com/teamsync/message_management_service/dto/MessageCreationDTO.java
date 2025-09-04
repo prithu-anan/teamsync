@@ -5,15 +5,17 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import java.util.List;
 
+// MessageCreationDTO - Add isPinned field (optional)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record MessageCreationDTO(
-        String content, // Optional - either content or files should be provided
+        String content,
         Long channelId,
         Long recipientId,
         Long threadParentId,
-        List<FileCreationDTO> files // Optional - either content or files should be provided
+        List<FileCreationDTO> files,
+        Boolean isPinned  // Add this field - defaults to false if not provided
 ) {
-    // Custom validation to ensure either content or files is provided
+    // Update constructor to handle null isPinned
     public MessageCreationDTO {
         if ((content == null || content.trim().isEmpty()) && (files == null || files.isEmpty())) {
             throw new IllegalArgumentException("Either content or files must be provided");
@@ -21,6 +23,11 @@ public record MessageCreationDTO(
 
         if (channelId == null && recipientId == null) {
             throw new IllegalArgumentException("Either channelId or recipientId must be provided");
+        }
+        
+        // Set default value for isPinned if null
+        if (isPinned == null) {
+            isPinned = false;
         }
     }
 }

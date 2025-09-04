@@ -26,6 +26,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://message_management_postgres:5432/message_management_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      # USER_SERVICE_URL: http://user-management-service:8082
+      # PROJECT_SERVICE_URL: http://project-management-service:8083
+
       # PROJECT_SERVICE_URL: http://project-management-service:8083
       # # Add Kafka configuration
       # SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092

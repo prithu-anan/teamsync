@@ -21,12 +21,14 @@ public class ChannelController {
     private ChannelService channelService;
 
     @PostMapping
-    public ResponseEntity<SuccessResponse<Void>> createChannel(@Valid @RequestBody ChannelRequestDTO requestDto) {
-        channelService.createChannel(requestDto);
-        SuccessResponse<Void> successResponse = SuccessResponse.<Void>builder()
+    public ResponseEntity<SuccessResponse<ChannelResponseDTO>> createChannel(
+            @Valid @RequestBody ChannelRequestDTO requestDto) {
+        ChannelResponseDTO responseDto = channelService.createChannel(requestDto);
+        SuccessResponse<ChannelResponseDTO> successResponse = SuccessResponse.<ChannelResponseDTO>builder()
                 .code(HttpStatus.CREATED.value())
                 .status(HttpStatus.CREATED)
                 .message("Channel created successfully")
+                .data(responseDto)
                 .build();
         return new ResponseEntity<>(successResponse, HttpStatus.CREATED);
     }
@@ -56,13 +58,14 @@ public class ChannelController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SuccessResponse<Void>> updateChannel(@PathVariable Long id, @Valid @RequestBody ChannelUpdateDTO requestDto) {
-         channelService.updateChannel(id, requestDto);
-        SuccessResponse<Void> successResponse = SuccessResponse.<Void>builder()
+    public ResponseEntity<SuccessResponse<ChannelResponseDTO>> updateChannel(@PathVariable Long id,
+            @Valid @RequestBody ChannelUpdateDTO requestDto) {
+        ChannelResponseDTO responseDto = channelService.updateChannel(id, requestDto);
+        SuccessResponse<ChannelResponseDTO> successResponse = SuccessResponse.<ChannelResponseDTO>builder()
                 .code(HttpStatus.OK.value())
                 .status(HttpStatus.OK)
                 .message("Channel updated successfully")
-//                .data(responseDto)
+                .data(responseDto)
                 .build();
         return ResponseEntity.ok(successResponse);
     }

@@ -20,9 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-
-
-
 @RestController
 @RequestMapping("/channels")
 @RequiredArgsConstructor
@@ -44,45 +41,47 @@ public class MessageController {
         }
 
         @PostMapping("/{channelId}/messages")
-        public ResponseEntity<SuccessResponse<Void>> createChannelMessage(
+        public ResponseEntity<SuccessResponse<MessageResponseDTO>> createChannelMessage(
                         @PathVariable Long channelId,
                         @Valid @RequestBody MessageCreationDTO requestDto) {
-                messageService.createChannelMessage(channelId, requestDto);
-                SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
+                MessageResponseDTO responseDto = messageService.createChannelMessage(channelId, requestDto);
+                SuccessResponse<MessageResponseDTO> resp = SuccessResponse.<MessageResponseDTO>builder()
                                 .code(HttpStatus.CREATED.value())
                                 .status(HttpStatus.CREATED)
                                 .message("Message created successfully")
-                                // .data(responseDto)
+                                .data(responseDto)
                                 .build();
                 return ResponseEntity.status(HttpStatus.CREATED).body(resp);
         }
 
-        @PostMapping(value = "/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-        public ResponseEntity<SuccessResponse<Void>> createMessageWithFiles(
-                        @RequestParam(value = "channelId", required = false) Long channelId,
-                        @RequestParam(value = "recipientId", required = false) Long recipientId,
-                        @RequestParam(value = "threadParentId", required = false) Long threadParentId,
-                        @RequestParam("files") MultipartFile[] files) {
+// Update createMessageWithFiles method parameters
+@PostMapping(value = "/files", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> createMessageWithFiles(
+        @RequestParam(value = "channelId", required = false) Long channelId,
+        @RequestParam(value = "recipientId", required = false) Long recipientId,
+        @RequestParam(value = "threadParentId", required = false) Long threadParentId,
+        @RequestParam(value = "isPinned", required = false, defaultValue = "false") Boolean isPinned,  // Add this line
+        @RequestParam("files") MultipartFile[] files) {
 
-                // Create FileCreationDTO list from MultipartFile array
-                List<FileCreationDTO> fileDtos = java.util.Arrays.stream(files)
-                                .map(file -> new FileCreationDTO(file))
-                                .toList();
+    // Create FileCreationDTO list from MultipartFile array
+    List<FileCreationDTO> fileDtos = java.util.Arrays.stream(files)
+            .map(file -> new FileCreationDTO(file))
+            .toList();
 
-                // Create MessageCreationDTO with channelId from path variable
-                MessageCreationDTO requestDto = new MessageCreationDTO(null, channelId, recipientId, threadParentId,
-                                fileDtos);
+    // Update MessageCreationDTO creation to include isPinned
+    MessageCreationDTO requestDto = new MessageCreationDTO(null, channelId, recipientId, threadParentId,
+            fileDtos, isPinned);  // Add isPinned parameter
 
-                messageService.createMessageWithFiles(requestDto);
+    List<MessageResponseDTO> responseDtos = messageService.createMessageWithFiles(requestDto);
 
-                SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
-                                .code(HttpStatus.CREATED.value())
-                                .status(HttpStatus.CREATED)
-                                .message("Message with files created successfully")
-                                .build();
-                return ResponseEntity.status(HttpStatus.CREATED).body(resp);
-        }
-
+    SuccessResponse<List<MessageResponseDTO>> resp = SuccessResponse.<List<MessageResponseDTO>>builder()
+            .code(HttpStatus.CREATED.value())
+            .status(HttpStatus.CREATED)
+            .message("Message with files created successfully")
+            .data(responseDtos)
+            .build();
+    return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+}
         @GetMapping("/{channelId}/messages/{messageId}")
         public ResponseEntity<SuccessResponse<MessageResponseDTO>> getChannelMessage(
                         @PathVariable Long channelId,
@@ -98,19 +97,21 @@ public class MessageController {
         }
 
         @PutMapping("/{channelId}/messages/{messageId}")
-        public ResponseEntity<SuccessResponse<Void>> updateChannelMessage(
+        public ResponseEntity<SuccessResponse<MessageResponseDTO>> updateChannelMessage(
                         @PathVariable Long channelId,
                         @PathVariable Long messageId,
                         @Valid @RequestBody MessageUpdateDTO requestDto) {
-                // Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                // Authentication authentication =
+                // SecurityContextHolder.getContext().getAuthentication();
                 // String userEmail = authentication.getName();
                 String userEmail = "a@b.com";
-                messageService.updateChannelMessage(channelId, messageId, requestDto, userEmail);
-                SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
+                MessageResponseDTO responseDto = messageService.updateChannelMessage(channelId, messageId, requestDto,
+                                userEmail);
+                SuccessResponse<MessageResponseDTO> resp = SuccessResponse.<MessageResponseDTO>builder()
                                 .code(HttpStatus.OK.value())
                                 .status(HttpStatus.OK)
                                 .message("Message updated successfully")
-                                // .data(responseDto)
+                                .data(responseDto)
                                 .build();
                 return ResponseEntity.ok(resp);
         }

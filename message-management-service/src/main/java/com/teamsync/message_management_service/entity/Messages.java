@@ -46,6 +46,11 @@ public class Messages {
     @Column(name = "file_type")
     private String fileType;
 
+    // Add this field to the Messages entity class
+    @Builder.Default
+    @Column(name = "is_pinned", nullable = false)
+    private Boolean isPinned = false;
+
     @PrePersist
     public void checkChannelOrRecipient() {
         if (channel == null && recipient == null) {
