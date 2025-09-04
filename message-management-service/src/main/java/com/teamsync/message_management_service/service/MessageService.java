@@ -78,17 +78,17 @@ public class MessageService {
         // String email = authentication.getName();
         // ************************************************************
         String email = "a@b.com";
-        UserResponseDTO sender = userClient.findByEmail(email);
+UserResponseDTO sender = userClient.findByEmail(email).getData(); // ✅ unwrap
         if (sender == null) {
             throw new NotFoundException("User not found with email " + email);
         }
 
         // Validate recipient if provided
         UserResponseDTO recipient = null;
-        if (requestDto.recipientId() != null) {
-            recipient = userClient.findById(requestDto.recipientId())
-                    .orElseThrow(() -> new NotFoundException(
-                            "Recipient with ID " + requestDto.recipientId() + " not found"));
+        if (requestDto.recipientId() != null) {    recipient = userClient.findById(requestDto.recipientId()).getData(); // ✅ unwrap
+    if (recipient == null) {
+        throw new NotFoundException("Recipient with ID " + requestDto.recipientId() + " not found");
+    }
         }
 
         // Validate thread parent if provided
@@ -116,7 +116,7 @@ public class MessageService {
     @Transactional
     public List<MessageResponseDTO> createMessageWithFiles(MessageCreationDTO requestDto) {
 
-        UserResponseDTO sender = userClient.getCurrentUser();
+UserResponseDTO sender = userClient.getCurrentUser().getData(); // ✅ unwrap
         if (sender == null) {
             throw new NotFoundException("User is unauthorized");
         }
@@ -134,9 +134,11 @@ public class MessageService {
         // Validate recipient if provided
         UserResponseDTO recipient = null;
         if (requestDto.recipientId() != null) {
-            recipient = userClient.findById(requestDto.recipientId())
-                    .orElseThrow(() -> new NotFoundException(
-                            "Recipient with ID " + requestDto.recipientId() + " not found"));
+
+                recipient = userClient.findById(requestDto.recipientId()).getData(); // ✅ unwrap
+    if (recipient == null) {
+        throw new NotFoundException("Recipient with ID " + requestDto.recipientId() + " not found");
+    }
         }
 
         // Validate thread parent if provided
@@ -215,9 +217,12 @@ public class MessageService {
         // Validate recipient if provided
         UserResponseDTO recipient = null;
         if (requestDto.recipientId() != null) {
-            recipient = userClient.findById(requestDto.recipientId())
-                    .orElseThrow(() -> new NotFoundException(
-                            "Recipient with ID " + requestDto.recipientId() + " not found"));
+
+
+                recipient = userClient.findById(requestDto.recipientId()).getData(); // ✅ unwrap
+    if (recipient == null) {
+        throw new NotFoundException("Recipient with ID " + requestDto.recipientId() + " not found");
+    }
         }
 
         // // Validate thread parent if provided

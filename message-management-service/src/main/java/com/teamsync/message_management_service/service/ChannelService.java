@@ -47,16 +47,25 @@ public class ChannelService {
 
     @Transactional
     public ChannelResponseDTO createChannel(ChannelRequestDTO requestDto) {
-        // Validate project existence
-        ProjectDTO project = projectClient.findById(requestDto.projectId())
-                .orElseThrow(() -> new NotFoundException("Project with ID " + requestDto.projectId() + " not found"));
+
+
+
+    // Validate project existence
+    ProjectDTO project = projectClient.findById(requestDto.projectId())
+            .getData(); // ✅ unwrap SuccessResponse
+
+    if (project == null) {
+        throw new NotFoundException("Project with ID " + requestDto.projectId() + " not found");
+    }
+
 
         // Validate member existence
         List<Long> memberIds = requestDto.memberIds();
         for (Long memberId : memberIds) {
-            if (!userClient.existsById(memberId)) {
-                throw new NotFoundException("User with ID " + memberId + " not found");
-            }
+                    Boolean exists = userClient.existsById(memberId).getData(); // ✅ unwrap
+        if (exists == null || !exists) {
+            throw new NotFoundException("User with ID " + memberId + " not found");
+        }
         }
         Channels channel = channelMapper.toEntity(requestDto);
         channel.setProject(project.getId());
@@ -84,13 +93,22 @@ public class ChannelService {
         Channels existing = channelRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Channel not found: " + id));
 
-        ProjectDTO project = projectClient.findById(dto.projectId())
-                .orElseThrow(() -> new NotFoundException("Project not found: " + dto.projectId()));
+    ProjectDTO project = projectClient.findById(dto.projectId())
+            .getData(); // ✅ unwrap SuccessResponse
 
+    if (project == null) {
+        throw new NotFoundException("Project not found: " + dto.projectId());
+    }
         List<Long> memberIds = dto.members();
         for (Long memberId : memberIds) {
-            UserResponseDTO user = userClient.findById(memberId)
-                    .orElseThrow(() -> new NotFoundException("User with ID " + memberId + " not found"));
+
+
+            // Inside updateChannel()
+UserResponseDTO user = userClient.findById(memberId).getData();
+if (user == null) {
+    throw new NotFoundException("User with ID " + memberId + " not found");
+}
+
         }
         channelMapper.updateEntityFromDto(dto, existing);
         existing.setProject(project.getId());
