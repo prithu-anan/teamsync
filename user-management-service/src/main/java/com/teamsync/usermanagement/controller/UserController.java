@@ -192,4 +192,20 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    // Add this endpoint to your existing UserController class
+
+@GetMapping("/exists/{userId}")
+public ResponseEntity<SuccessResponse<Boolean>> existsById(@PathVariable("userId") Long userId) {
+    boolean exists = userService.existsById(userId);
+    
+    SuccessResponse<Boolean> response = SuccessResponse.<Boolean>builder()
+            .code(HttpStatus.OK.value())
+            .status(HttpStatus.OK)
+            .message("User existence check completed")
+            .data(exists)
+            .build();
+    
+    return ResponseEntity.ok(response);
+}
+
 }

@@ -56,7 +56,7 @@ public class PollVoteService {
     }
 
     public PollVoteResponseDTO createPollVote(PollVoteCreationDTO request, String userEmail) {
-        UserResponseDTO user = userClient.findByEmail(userEmail);
+    UserResponseDTO user = userClient.findByEmail(userEmail).getData(); // FIX: Extract data from SuccessResponse
         if (user == null) {
             throw new NotFoundException("User not found with email " + userEmail);
         }
@@ -89,8 +89,10 @@ public class PollVoteService {
         FeedPosts poll = feedPostsRepository.findById(request.getPollId())
                 .orElseThrow(() -> new NotFoundException("Poll not found with id: " + request.getPollId()));
 
-        UserResponseDTO user = userClient.findById(request.getUserId())
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + request.getUserId()));
+        UserResponseDTO user = userClient.findById(request.getUserId()).getData(); // FIX: Extract data from SuccessResponse
+    if (user == null) { // FIX: Handle null response properly
+        throw new NotFoundException("User not found with id: " + request.getUserId());
+    }
 
         if (!isValidPollOption(poll.getPollOptions(), request.getSelectedOption())) {
             throw new NotFoundException("Invalid poll option selected " + request.getSelectedOption());

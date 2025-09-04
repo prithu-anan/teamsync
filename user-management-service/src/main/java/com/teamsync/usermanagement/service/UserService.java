@@ -215,4 +215,13 @@ public class UserService {
         }
         return buildUserResponseWithImage(user);
     }
+
+    // Add these methods to your existing UserService class
+
+public boolean existsById(Long userId) {
+    if (userId == null || userId <= 0) {
+        return false;
+    }
+    return userRepository.existsById(userId);
+}
 }

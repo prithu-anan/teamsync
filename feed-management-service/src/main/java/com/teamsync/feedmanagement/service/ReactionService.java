@@ -42,8 +42,11 @@ public class ReactionService {
     public ReactionResponseDTO addReaction(Long postId, ReactionCreateRequestDTO request) {
         FeedPosts post = feedPostRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("FeedPost not found with id: " + postId));
-        UserResponseDTO user = userClient.findById(request.getUserId())
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + request.getUserId()));
+
+                  UserResponseDTO user = userClient.findById(request.getUserId()).getData(); // FIX: Extract data from SuccessResponse
+    if (user == null) { // FIX: Handle null response properly
+        throw new NotFoundException("User not found with id: " + request.getUserId());
+    }
 
         Reactions.ReactionType reactionType;
         try {
@@ -79,9 +82,11 @@ public class ReactionService {
                 .orElseThrow(() -> new NotFoundException("FeedPost not found with id: " + postId));
 
         // Verify user exists
-        UserResponseDTO user = userClient.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
-
+  // Verify user exists
+    UserResponseDTO user = userClient.findById(userId).getData(); // FIX: Extract data from SuccessResponse
+    if (user == null) { // FIX: Handle null response properly
+        throw new NotFoundException("User not found with id: " + userId);
+    }
         // Validate reaction type
         try {
             Reactions.ReactionType.valueOf(reactionType);
@@ -104,9 +109,10 @@ public class ReactionService {
     public ReactionResponseDTO updateReaction(Long postId, ReactionCreateRequestDTO request) {
         FeedPosts post = feedPostRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("FeedPost not found with id: " + postId));
-        UserResponseDTO user = userClient.findById(request.getUserId())
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + request.getUserId()));
-
+  UserResponseDTO user = userClient.findById(request.getUserId()).getData(); // FIX: Extract data from SuccessResponse
+    if (user == null) { // FIX: Handle null response properly
+        throw new NotFoundException("User not found with id: " + request.getUserId());
+    }
         Reactions.ReactionType reactionType;
         try {
             reactionType = Reactions.ReactionType.valueOf(request.getReactionType());

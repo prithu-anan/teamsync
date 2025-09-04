@@ -61,20 +61,23 @@ public class AppreciationService {
             throw new UnauthorizedException("User email is required for creating appreciation");
         }
 
-        // Validate from user (authenticated user)
-        UserResponseDTO fromUser = userClient.findByEmail(userEmail);
-        if (fromUser == null) {
-            throw new UnauthorizedException("User not found with email: " + userEmail);
-        }
+           // Validate from user (authenticated user)
+    UserResponseDTO fromUser = userClient.findByEmail(userEmail).getData(); // FIX: Extract data from SuccessResponse
+    if (fromUser == null) {
+        throw new UnauthorizedException("User not found with email: " + userEmail);
+    }
 
         // Validate to user exists
         if (createDTO.getToUserId() == null) {
             throw new IllegalArgumentException("Recipient user ID cannot be null");
         }
 
-        UserResponseDTO toUser = userClient.findById(createDTO.getToUserId())
-                .orElseThrow(
-                        () -> new NotFoundException("Recipient user not found with id: " + createDTO.getToUserId()));
+    UserResponseDTO toUser = userClient.findById(createDTO.getToUserId()).getData(); // FIX: Extract data from SuccessResponse
+    if (toUser == null) { // FIX: Handle null response properly
+        throw new NotFoundException("Recipient user not found with id: " + createDTO.getToUserId());
+    }
+
+
 
         // Prevent self-appreciation
         if (fromUser.getId().equals(toUser.getId())) {
@@ -106,10 +109,12 @@ public class AppreciationService {
                 .orElseThrow(() -> new NotFoundException("Appreciation not found with id: " + id));
 
         // Check if the authenticated user is the creator of the appreciation
-        UserResponseDTO authenticatedUser = userClient.findByEmail(userEmail);
-        if (authenticatedUser == null) {
-            throw new UnauthorizedException("User not found with email: " + userEmail);
-        }
+      // Check if the authenticated user is the creator of the appreciation
+    UserResponseDTO authenticatedUser = userClient.findByEmail(userEmail).getData(); // FIX: Extract data from SuccessResponse
+    if (authenticatedUser == null) {
+        throw new UnauthorizedException("User not found with email: " + userEmail);
+    }
+
 
         // if
         // (!existingAppreciation.getFromUser().getId().equals(authenticatedUser.getId()))
@@ -119,25 +124,28 @@ public class AppreciationService {
         // }
 
         // Validate users exist if IDs are being updated
-        if (updateDTO.getFromUserId() != null) {
-            UserResponseDTO fromUser = userClient.findById(updateDTO.getFromUserId())
-                    .orElseThrow(
-                            () -> new NotFoundException("From user not found with id: " + updateDTO.getFromUserId()));
-            existingAppreciation.setFromUser(fromUser.getId());
+      if (updateDTO.getFromUserId() != null) {
+        UserResponseDTO fromUser = userClient.findById(updateDTO.getFromUserId()).getData(); // FIX: Extract data from SuccessResponse
+        if (fromUser == null) { // FIX: Handle null response properly
+            throw new NotFoundException("From user not found with id: " + updateDTO.getFromUserId());
+        }
+        existingAppreciation.setFromUser(fromUser.getId());
+    }
+
+    if (updateDTO.getToUserId() != null) {
+        UserResponseDTO toUser = userClient.findById(updateDTO.getToUserId()).getData(); // FIX: Extract data from SuccessResponse
+        if (toUser == null) { // FIX: Handle null response properly
+            throw new NotFoundException("To user not found with id: " + updateDTO.getToUserId());
         }
 
-        if (updateDTO.getToUserId() != null) {
-            UserResponseDTO toUser = userClient.findById(updateDTO.getToUserId())
-                    .orElseThrow(() -> new NotFoundException("To user not found with id: " + updateDTO.getToUserId()));
-
-            // Prevent self-appreciation
-            if (existingAppreciation.getFromUser().equals(toUser.getId())) {
-                throw new IllegalArgumentException("Cannot create appreciation for yourself");
-            }
-
-            existingAppreciation.setToUser(toUser.getId());
+        // Prevent self-appreciation
+        if (existingAppreciation.getFromUser().equals(toUser.getId())) {
+            throw new IllegalArgumentException("Cannot create appreciation for yourself");
         }
 
+        existingAppreciation.setToUser(toUser.getId());
+    }
+    
         // Update the entity with new values
         appreciationMapper.updateEntityFromDTO(updateDTO, existingAppreciation);
         Appreciations updatedAppreciation = appreciationRepository.save(existingAppreciation);

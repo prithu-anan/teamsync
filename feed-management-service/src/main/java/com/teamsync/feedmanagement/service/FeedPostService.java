@@ -128,8 +128,10 @@ public class FeedPostService {
 
     public FeedPostResponseDTO createFeedPost(FeedPostCreateRequest request, List<MultipartFile> files) {
 
-        UserResponseDTO currentUser = userClient.getCurrentUser();
-
+    UserResponseDTO currentUser = userClient.getCurrentUser().getData(); // FIX: Extract data from SuccessResponse
+    if (currentUser == null) { // FIX: Handle null response properly
+        throw new NotFoundException("Current user not found");
+    }
         // Upload files and get URLs if files are provided
         if (files != null && !files.isEmpty()) {
             List<String> uploadedUrls = files.stream()
@@ -206,8 +208,10 @@ public class FeedPostService {
 
         // Add new reactions
         for (ReactionDetailDTO reactionDto : newReactions) {
-            UserResponseDTO user = userClient.findById(reactionDto.getUserId())
-                    .orElseThrow(() -> new NotFoundException("User not found with id: " + reactionDto.getUserId()));
+                 UserResponseDTO user = userClient.findById(reactionDto.getUserId()).getData(); // FIX: Extract data from SuccessResponse
+        if (user == null) { // FIX: Handle null response properly
+            throw new NotFoundException("User not found with id: " + reactionDto.getUserId());
+        }
 
             Reactions reaction = Reactions.builder()
                     .user(user.getId())

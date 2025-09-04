@@ -38,9 +38,10 @@ public class EventService {
         // Validate participant existence - throw NotFoundException for missing users
         List<Long> participantIds = requestDto.participantIds();
         for (Long participantId : participantIds) {
-            if (!userClient.existsById(participantId)) {
-                throw new NotFoundException("User with ID " + participantId + " not found");
-            }
+                Boolean exists = userClient.existsById(participantId).getData(); // FIX: Extract data from SuccessResponse
+        if (exists == null || !exists) { // FIX: Handle null response and check boolean value
+            throw new NotFoundException("User with ID " + participantId + " not found");
+        }
 
         }
 
@@ -93,9 +94,10 @@ public class EventService {
         List<Long> participantIds = requestDto.participants();
         if (participantIds != null) {
             for (Long participantId : participantIds) {
-                if (!userClient.existsById(participantId)) {
-                    throw new NotFoundException("User with ID " + participantId + " not found");
-                }
+                         Boolean exists = userClient.existsById(participantId).getData(); // FIX: Extract data from SuccessResponse
+            if (exists == null || !exists) { // FIX: Handle null response and check boolean value
+                throw new NotFoundException("User with ID " + participantId + " not found");
+            }
             }
         }
         eventMapper.updateEventFromDTO(requestDto, event);

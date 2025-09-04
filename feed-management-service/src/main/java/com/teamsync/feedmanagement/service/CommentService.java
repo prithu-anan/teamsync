@@ -65,7 +65,7 @@ public class CommentService {
                 FeedPosts post = feedPostRepository.findById(postId)
                                 .orElseThrow(() -> new NotFoundException("Post not found with id: " + postId));
 
-                UserResponseDTO author = userClient.getUserByEmail(userEmail);
+    UserResponseDTO author = userClient.getUserByEmail(userEmail).getData(); // FIX: Extract data from SuccessResponse
                 if (author == null) {
                         throw new NotFoundException("User not found ");
                 }
@@ -148,9 +148,11 @@ public class CommentService {
                         commentReactionRepository.deleteByCommentId(comment.getId());
                 }
                 for (ReactionDetailDTO reactionDTO : reactionDTOs) {
-                        UserResponseDTO user = userClient.findById(reactionDTO.getUserId())
-                                        .orElseThrow(() -> new NotFoundException(
-                                                        "User not found with id: " + reactionDTO.getUserId()));
+                         UserResponseDTO user = userClient.findById(reactionDTO.getUserId()).getData(); // FIX: Extract data from SuccessResponse
+        if (user == null) { // FIX: Handle null response properly
+            throw new NotFoundException("User not found with id: " + reactionDTO.getUserId());
+        }
+
 
                         Reactions reaction = Reactions.builder()
                                         .comment(comment)
@@ -190,9 +192,10 @@ public class CommentService {
                                 .orElseThrow(() -> new NotFoundException(
                                                 "Comment not found with id: " + commentId + " for post: " + postId));
 
-                UserResponseDTO user = userClient.findById(requestDTO.getUserId())
-                                .orElseThrow(() -> new NotFoundException(
-                                                "User not found with id: " + requestDTO.getUserId()));
+                  UserResponseDTO user = userClient.findById(requestDTO.getUserId()).getData(); // FIX: Extract data from SuccessResponse
+    if (user == null) { // FIX: Handle null response properly
+        throw new NotFoundException("User not found with id: " + requestDTO.getUserId());
+    }
 
                 // Validate reaction type by attempting to parse it
                 Reactions.ReactionType reactionType;
@@ -233,10 +236,12 @@ public class CommentService {
                 commentRepository.findByPostIdAndCommentId(postId, commentId)
                                 .orElseThrow(() -> new NotFoundException(
                                                 "Comment not found with id: " + commentId + " for post: " + postId));
+    // Verify user exists
+    UserResponseDTO user = userClient.findById(userId).getData(); // FIX: Extract data from SuccessResponse
+    if (user == null) { // FIX: Handle null response properly
+        throw new NotFoundException("User not found with id: " + userId);
+    }
 
-                // Verify user exists
-                userClient.findById(userId)
-                                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
                 // Validate reaction type
                 Reactions.ReactionType reactionType;
@@ -286,10 +291,11 @@ public class CommentService {
                                 .orElseThrow(() -> new NotFoundException(
                                                 "Comment not found with id: " + commentId + " for post: " + postId));
 
-                // Verify user exists
-                UserResponseDTO author = userClient.findById(requestDTO.getAuthor_id())
-                                .orElseThrow(() -> new NotFoundException(
-                                                "User not found with id: " + requestDTO.getAuthor_id()));
+                                                
+   UserResponseDTO author = userClient.findById(requestDTO.getAuthor_id()).getData(); // FIX: Extract data from SuccessResponse
+    if (author == null) { // FIX: Handle null response properly
+        throw new NotFoundException("User not found with id: " + requestDTO.getAuthor_id());
+    }
 
                 // Create reply comment
                 Comments reply = Comments.builder()
