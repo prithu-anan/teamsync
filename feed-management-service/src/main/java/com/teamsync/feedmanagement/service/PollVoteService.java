@@ -15,7 +15,6 @@ import com.teamsync.feedmanagement.repository.PollVoteRepository;
 // import com.teamsync.feedmanagement.repository.UserRepository;
 import com.teamsync.feedmanagement.client.UserClient;
 
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
 
 @Slf4j
 @Service
@@ -53,14 +51,14 @@ public class PollVoteService {
         PollVotes pollVote = pollVotesRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Poll vote not found with id: " + id));
 
-        return  pollVotesMapper.toDTO(pollVote);
+        return pollVotesMapper.toDTO(pollVote);
 
     }
 
-    public void createPollVote(PollVoteCreationDTO request, String userEmail) {
+    public PollVoteResponseDTO createPollVote(PollVoteCreationDTO request, String userEmail) {
         UserResponseDTO user = userClient.findByEmail(userEmail);
         if (user == null) {
-            throw new NotFoundException("User not found with email "+userEmail);
+            throw new NotFoundException("User not found with email " + userEmail);
         }
 
         FeedPosts poll = feedPostsRepository.findById(request.getPollId())
@@ -72,7 +70,7 @@ public class PollVoteService {
         }
 
         if (!isValidPollOption(poll.getPollOptions(), request.getSelectedOption())) {
-            throw new NotFoundException("Invalid poll option selected "+ request.getSelectedOption());
+            throw new NotFoundException("Invalid poll option selected " + request.getSelectedOption());
         }
         PollVotes pollVote = PollVotes.builder()
                 .poll(poll)
@@ -80,10 +78,11 @@ public class PollVoteService {
                 .selectedOption(request.getSelectedOption())
                 .build();
 
-        pollVotesRepository.save(pollVote);
+        PollVotes savedPollVote = pollVotesRepository.save(pollVote);
+        return pollVotesMapper.toDTO(savedPollVote);
     }
 
-    public void updatePollVote(Long id, PollVoteUpdateDTO request) {
+    public PollVoteResponseDTO updatePollVote(Long id, PollVoteUpdateDTO request) {
         PollVotes existingPollVote = pollVotesRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Poll vote not found with id: " + id));
 
@@ -94,13 +93,14 @@ public class PollVoteService {
                 .orElseThrow(() -> new NotFoundException("User not found with id: " + request.getUserId()));
 
         if (!isValidPollOption(poll.getPollOptions(), request.getSelectedOption())) {
-            throw new NotFoundException("Invalid poll option selected "+ request.getSelectedOption());
+            throw new NotFoundException("Invalid poll option selected " + request.getSelectedOption());
         }
 
         existingPollVote.setPoll(poll);
         existingPollVote.setUser(user.getId());
         existingPollVote.setSelectedOption(request.getSelectedOption());
-        pollVotesRepository.save(existingPollVote);
+        PollVotes updatedPollVote = pollVotesRepository.save(existingPollVote);
+        return pollVotesMapper.toDTO(updatedPollVote);
     }
 
     public void deletePollVote(Long id) {

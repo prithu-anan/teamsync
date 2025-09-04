@@ -23,7 +23,6 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -53,7 +52,7 @@ public class AppreciationService {
         return appreciationMapper.toResponseDTO(appreciation);
     }
 
-    public void createAppreciation(AppreciationCreateDTO createDTO, String userEmail) {
+    public AppreciationResponseDTO createAppreciation(AppreciationCreateDTO createDTO, String userEmail) {
         if (createDTO == null) {
             throw new IllegalArgumentException("Appreciation data cannot be null");
         }
@@ -77,7 +76,6 @@ public class AppreciationService {
                 .orElseThrow(
                         () -> new NotFoundException("Recipient user not found with id: " + createDTO.getToUserId()));
 
-
         // Prevent self-appreciation
         if (fromUser.getId().equals(toUser.getId())) {
             throw new IllegalArgumentException("Cannot create appreciation for yourself");
@@ -87,12 +85,11 @@ public class AppreciationService {
         appreciation.setFromUser(fromUser.getId());
         appreciation.setToUser(toUser.getId());
         appreciation.setTimestamp(ZonedDateTime.now());
-
-        appreciationRepository.save(appreciation);
-
+        Appreciations savedAppreciation = appreciationRepository.save(appreciation);
+        return appreciationMapper.toResponseDTO(savedAppreciation);
     }
 
-    public void updateAppreciation(Long id, AppreciationUpdateDTO updateDTO, String userEmail) {
+    public AppreciationResponseDTO updateAppreciation(Long id, AppreciationUpdateDTO updateDTO, String userEmail) {
         if (id == null) {
             throw new IllegalArgumentException("Appreciation ID cannot be null");
         }
@@ -143,7 +140,8 @@ public class AppreciationService {
 
         // Update the entity with new values
         appreciationMapper.updateEntityFromDTO(updateDTO, existingAppreciation);
-        appreciationRepository.save(existingAppreciation);
+        Appreciations updatedAppreciation = appreciationRepository.save(existingAppreciation);
+        return appreciationMapper.toResponseDTO(updatedAppreciation);
     }
 
     public void deleteAppreciation(Long id) {

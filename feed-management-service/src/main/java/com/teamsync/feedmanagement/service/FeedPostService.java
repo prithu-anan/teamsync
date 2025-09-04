@@ -157,7 +157,7 @@ public class FeedPostService {
         return feedPostMapper.toDetailDtoWithReactions(feedPost, reactionsDetailsDTO);
     }
 
-    public void updateFeedPost(Long id, FeedPostUpdateRequest request) {
+    public FeedPostResponseDTO updateFeedPost(Long id, FeedPostUpdateRequest request) {
         FeedPosts existingPost = feedPostsRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("FeedPost not found with id: " + id));
 
@@ -169,8 +169,11 @@ public class FeedPostService {
             updateReactions(existingPost, request.getReactions());
         }
 
-        feedPostsRepository.save(existingPost);
+        // feedPostsRepository.save(existingPost);
         // return feedPostMapper.toResponse(updatedPost);
+
+        FeedPosts updatedPost = feedPostsRepository.save(existingPost);
+        return feedPostMapper.toResponse(updatedPost);
     }
 
     public void deleteFeedPost(Long id) {

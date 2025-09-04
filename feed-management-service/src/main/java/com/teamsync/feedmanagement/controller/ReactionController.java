@@ -16,58 +16,60 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ReactionController {
 
-    private final ReactionService reactionService;
+        private final ReactionService reactionService;
 
-    @GetMapping
-    public ResponseEntity<SuccessResponse<List<ReactionResponseDTO>>> getReactions(
-            @PathVariable Long id) {
-        List<ReactionResponseDTO> reactions = reactionService.getAllReactions(id);
-        SuccessResponse<List<ReactionResponseDTO>> resp = SuccessResponse.<List<ReactionResponseDTO>>builder()
-                .code(HttpStatus.OK.value())
-                .status(HttpStatus.OK)
-                .message("Reactions fetched successfully")
-                .data(reactions)
-                .build();
-        return ResponseEntity.ok(resp);
-    }
+        @GetMapping
+        public ResponseEntity<SuccessResponse<List<ReactionResponseDTO>>> getReactions(
+                        @PathVariable Long id) {
+                List<ReactionResponseDTO> reactions = reactionService.getAllReactions(id);
+                SuccessResponse<List<ReactionResponseDTO>> resp = SuccessResponse.<List<ReactionResponseDTO>>builder()
+                                .code(HttpStatus.OK.value())
+                                .status(HttpStatus.OK)
+                                .message("Reactions fetched successfully")
+                                .data(reactions)
+                                .build();
+                return ResponseEntity.ok(resp);
+        }
 
-    @PostMapping
-    public ResponseEntity<SuccessResponse<Void>> addReaction(
-            @PathVariable Long id,
-            @Valid @RequestBody ReactionCreateRequestDTO request) {
-        reactionService.addReaction(id, request);
-        SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
-                .code(HttpStatus.CREATED.value())
-                .status(HttpStatus.CREATED)
-                .message("Reaction added successfully")
-//                .data(reaction)
-                .build();
-        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
-    }
+        @PostMapping
+        public ResponseEntity<SuccessResponse<ReactionResponseDTO>> addReaction(
+                        @PathVariable Long id,
+                        @Valid @RequestBody ReactionCreateRequestDTO request) {
+                ReactionResponseDTO reaction = reactionService.addReaction(id, request);
+                SuccessResponse<ReactionResponseDTO> resp = SuccessResponse.<ReactionResponseDTO>builder()
+                                .code(HttpStatus.CREATED.value())
+                                .status(HttpStatus.CREATED)
+                                .message("Reaction added successfully")
+                                .data(reaction)
+                                .build();
+                return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+        }
 
-    @DeleteMapping
-    public ResponseEntity<SuccessResponse<Void>> removeReaction(
-            @PathVariable Long id,
-            @RequestParam("user_id") Long userId,
-            @RequestParam("reaction_type") String reactionType) {
-        reactionService.removeReaction(id, userId, reactionType);
-        SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
-                .code(HttpStatus.NO_CONTENT.value())
-                .status(HttpStatus.OK)
-                .message("Reaction removed successfully")
-                .build();
-        return ResponseEntity.status(HttpStatus.OK).body(resp);
-    }
-    @PutMapping
-    public ResponseEntity<SuccessResponse<Void>> updateReaction(
-            @PathVariable Long id,
-            @Valid @RequestBody ReactionCreateRequestDTO request) {
-        reactionService.updateReaction(id, request);
-        SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
-                .code(HttpStatus.OK.value())
-                .status(HttpStatus.OK)
-                .message("Reaction updated successfully")
-                .build();
-        return ResponseEntity.ok(resp);
-    }
+        @DeleteMapping
+        public ResponseEntity<SuccessResponse<Void>> removeReaction(
+                        @PathVariable Long id,
+                        @RequestParam("user_id") Long userId,
+                        @RequestParam("reaction_type") String reactionType) {
+                reactionService.removeReaction(id, userId, reactionType);
+                SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
+                                .code(HttpStatus.NO_CONTENT.value())
+                                .status(HttpStatus.OK)
+                                .message("Reaction removed successfully")
+                                .build();
+                return ResponseEntity.status(HttpStatus.OK).body(resp);
+        }
+
+        @PutMapping
+        public ResponseEntity<SuccessResponse<ReactionResponseDTO>> updateReaction(
+                        @PathVariable Long id,
+                        @Valid @RequestBody ReactionCreateRequestDTO request) {
+                ReactionResponseDTO reaction = reactionService.updateReaction(id, request);
+                SuccessResponse<ReactionResponseDTO> resp = SuccessResponse.<ReactionResponseDTO>builder()
+                                .code(HttpStatus.OK.value())
+                                .status(HttpStatus.OK)
+                                .message("Reaction updated successfully")
+                                .data(reaction)
+                                .build();
+                return ResponseEntity.ok(resp);
+        }
 }

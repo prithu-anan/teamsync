@@ -30,27 +30,28 @@ public class EventService {
     @Autowired
     private UserClient userClient;
 
-
     @Autowired
     private EventMapper eventMapper;
 
     @Transactional
-    public void createEvent(EventCreationDTO requestDto) {
+    public EventResponseDTO createEvent(EventCreationDTO requestDto) {
         // Validate participant existence - throw NotFoundException for missing users
         List<Long> participantIds = requestDto.participantIds();
         for (Long participantId : participantIds) {
             if (!userClient.existsById(participantId)) {
                 throw new NotFoundException("User with ID " + participantId + " not found");
             }
-            
+
         }
 
         Events event = eventMapper.toEntity(requestDto);
 
         // DataIntegrityViolationException (e.g., duplicate constraints) will be handled
         // by DBExceptionHandler
-        eventRepository.save(event);
+        // eventRepository.save(event);
         // return eventMapper.toDto(savedEvent);
+        Events savedEvent = eventRepository.save(event);
+        return eventMapper.toDto(savedEvent);
     }
 
     public EventResponseDTO getEventById(Long id) {
@@ -74,7 +75,7 @@ public class EventService {
     }
 
     @Transactional
-    public void updateEvent(Long id, EventUpdateDTO requestDto) {
+    public EventResponseDTO updateEvent(Long id, EventUpdateDTO requestDto) {
         // Validate input parameters
         if (id == null) {
             throw new IllegalArgumentException("Event ID cannot be null");
@@ -98,8 +99,10 @@ public class EventService {
             }
         }
         eventMapper.updateEventFromDTO(requestDto, event);
-        eventRepository.save(event);
+        // eventRepository.save(event);
         // return eventMapper.toDto(savedEvent);
+        Events savedEvent = eventRepository.save(event);
+        return eventMapper.toDto(savedEvent);
     }
 
     @Transactional

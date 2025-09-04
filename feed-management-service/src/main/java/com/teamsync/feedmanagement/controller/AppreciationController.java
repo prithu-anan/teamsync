@@ -56,7 +56,7 @@ public class AppreciationController {
         }
 
         @PostMapping
-        public ResponseEntity<SuccessResponse<Void>> createAppreciation(
+        public ResponseEntity<SuccessResponse<AppreciationResponseDTO>> createAppreciation(
                         @Valid @RequestBody AppreciationCreateDTO createDTO) {
 
                 // Authentication authentication =
@@ -64,19 +64,21 @@ public class AppreciationController {
                 // String userEmail = authentication.getName();
                 String userEmail = "a@b.com";
 
-                appreciationService.createAppreciation(createDTO, userEmail);
+                AppreciationResponseDTO createdAppreciation = appreciationService.createAppreciation(createDTO,
+                                userEmail);
 
-                SuccessResponse<Void> response = SuccessResponse.<Void>builder()
+                SuccessResponse<AppreciationResponseDTO> response = SuccessResponse.<AppreciationResponseDTO>builder()
                                 .code(HttpStatus.CREATED.value())
                                 .status(HttpStatus.CREATED)
                                 .message("Appreciation created successfully")
+                                .data(createdAppreciation)
                                 .build();
 
                 return ResponseEntity.status(HttpStatus.CREATED).body(response);
         }
 
         @PutMapping("/{id}")
-        public ResponseEntity<SuccessResponse<Void>> updateAppreciation(
+        public ResponseEntity<SuccessResponse<AppreciationResponseDTO>> updateAppreciation(
                         @PathVariable Long id,
                         @Valid @RequestBody AppreciationUpdateDTO updateDTO) {
 
@@ -85,12 +87,14 @@ public class AppreciationController {
                 // String userEmail = authentication.getName();
                 String userEmail = "a@b.com";
 
-                appreciationService.updateAppreciation(id, updateDTO, userEmail);
+                AppreciationResponseDTO updatedAppreciation = appreciationService.updateAppreciation(id, updateDTO,
+                                userEmail);
 
-                SuccessResponse<Void> response = SuccessResponse.<Void>builder()
+                SuccessResponse<AppreciationResponseDTO> response = SuccessResponse.<AppreciationResponseDTO>builder()
                                 .code(HttpStatus.OK.value())
                                 .status(HttpStatus.OK)
                                 .message("Appreciation updated successfully")
+                                .data(updatedAppreciation)
                                 .build();
                 return ResponseEntity.ok(response);
         }

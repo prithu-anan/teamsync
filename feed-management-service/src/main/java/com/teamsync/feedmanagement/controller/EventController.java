@@ -22,16 +22,15 @@ public class EventController {
     private EventService eventService;
 
     @PostMapping
-    public ResponseEntity<SuccessResponse<Void>> createEvent(@Valid @RequestBody EventCreationDTO requestDto) {
-        eventService.createEvent(requestDto);
-
-        SuccessResponse<Void> response = SuccessResponse.<Void>builder()
+    public ResponseEntity<SuccessResponse<EventResponseDTO>> createEvent(
+            @Valid @RequestBody EventCreationDTO requestDto) {
+        EventResponseDTO responseDto = eventService.createEvent(requestDto);
+        SuccessResponse<EventResponseDTO> response = SuccessResponse.<EventResponseDTO>builder()
                 .code(HttpStatus.CREATED.value())
                 .status(HttpStatus.CREATED)
                 .message("Event created successfully")
-//                .data(responseDto)
+                .data(responseDto)
                 .build();
-
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -64,15 +63,15 @@ public class EventController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SuccessResponse<Void>> updateEvent(@PathVariable Long id, @Valid @RequestBody EventUpdateDTO requestDto) {
-        eventService.updateEvent(id, requestDto);
-
-        SuccessResponse<Void> response = SuccessResponse.<Void>builder()
+    public ResponseEntity<SuccessResponse<EventResponseDTO>> updateEvent(@PathVariable Long id,
+            @Valid @RequestBody EventUpdateDTO requestDto) {
+        EventResponseDTO responseDto = eventService.updateEvent(id, requestDto);
+        SuccessResponse<EventResponseDTO> response = SuccessResponse.<EventResponseDTO>builder()
                 .code(HttpStatus.OK.value())
                 .status(HttpStatus.OK)
                 .message("Event updated successfully")
+                .data(responseDto)
                 .build();
-
         return ResponseEntity.ok(response);
     }
 

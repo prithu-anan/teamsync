@@ -184,3 +184,34 @@ public class UserClient {
         return users.get(99L);
     }
 }
+// package com.teamsync.feedmanagement.client;
+
+// import com.teamsync.feedmanagement.dto.UserResponseDTO;
+// import com.teamsync.feedmanagement.response.SuccessResponse;
+// import org.springframework.cloud.openfeign.FeignClient;
+// import org.springframework.web.bind.annotation.GetMapping;
+// import org.springframework.web.bind.annotation.PathVariable;
+// import org.springframework.web.bind.annotation.RequestParam;
+
+// @FeignClient(name = "user-service", url = "${user-service.url}")
+// public interface UserClient {
+
+//     @GetMapping("/users/projects/{id}")
+//     SuccessResponse<UserResponseDTO> findById(@PathVariable("id") Long id);
+
+//     @GetMapping("/users/projects/email/{email}")
+//     SuccessResponse<UserResponseDTO> findByEmail(@PathVariable("email") String email);
+
+//     @GetMapping("/users/projects/authenticate")
+//     SuccessResponse<UserResponseDTO> authenticateByEmail(@RequestParam("email") String userEmail);
+
+//     @GetMapping("/users/projects/get")
+//     SuccessResponse<UserResponseDTO> getUserByEmail(@RequestParam("email") String userEmail);
+
+//     @GetMapping("/users/projects/{id}/exists")
+//     SuccessResponse<Boolean> existsById(@PathVariable("id") Long id);
+
+//     @GetMapping("/users/projects/current")
+//     SuccessResponse<UserResponseDTO> getCurrentUser();
+// }
+

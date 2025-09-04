@@ -39,7 +39,7 @@ public class ReactionService {
         return reactionMapper.reactionsResponseToDTO(reactions);
     }
 
-    public void addReaction(Long postId, ReactionCreateRequestDTO request) {
+    public ReactionResponseDTO addReaction(Long postId, ReactionCreateRequestDTO request) {
         FeedPosts post = feedPostRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("FeedPost not found with id: " + postId));
         UserResponseDTO user = userClient.findById(request.getUserId())
@@ -69,8 +69,8 @@ public class ReactionService {
                 .createdAt(ZonedDateTime.now())
                 .build();
 
-        reactionRepository.save(reaction);
-        // return reactionMapper.reactionResponseToDTO(savedReaction);
+        Reactions savedReaction = reactionRepository.save(reaction);
+        return reactionMapper.reactionResponseToDTO(savedReaction);
     }
 
     public void removeReaction(Long postId, Long userId, String reactionType) {
@@ -101,7 +101,7 @@ public class ReactionService {
         reactionRepository.delete(targetReaction);
     }
 
-    public void updateReaction(Long postId, ReactionCreateRequestDTO request) {
+    public ReactionResponseDTO updateReaction(Long postId, ReactionCreateRequestDTO request) {
         FeedPosts post = feedPostRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("FeedPost not found with id: " + postId));
         UserResponseDTO user = userClient.findById(request.getUserId())
@@ -128,6 +128,7 @@ public class ReactionService {
                 .createdAt(ZonedDateTime.now())
                 .build();
 
-        reactionRepository.save(reaction);
+        Reactions updatedReaction = reactionRepository.save(reaction);
+        return reactionMapper.reactionResponseToDTO(updatedReaction);
     }
 }

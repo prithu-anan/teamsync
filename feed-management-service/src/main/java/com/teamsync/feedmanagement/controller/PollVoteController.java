@@ -35,18 +35,19 @@ public class PollVoteController {
     }
 
     @PostMapping
-    public ResponseEntity<SuccessResponse<Void>> createPollVote(
+    public ResponseEntity<SuccessResponse<PollVoteResponseDTO>> createPollVote(
             @Valid @RequestBody PollVoteCreationDTO request) {
         // Authentication authentication =
         // SecurityContextHolder.getContext().getAuthentication();
         // String userEmail = authentication.getName();
         String userEmail = "a@b.com";
 
-        pollVotesService.createPollVote(request, userEmail);
-        SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
+        PollVoteResponseDTO createdPollVote = pollVotesService.createPollVote(request, userEmail);
+        SuccessResponse<PollVoteResponseDTO> resp = SuccessResponse.<PollVoteResponseDTO>builder()
                 .code(HttpStatus.CREATED.value())
                 .status(HttpStatus.CREATED)
                 .message("Poll vote created successfully")
+                .data(createdPollVote)
                 .build();
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
@@ -64,14 +65,15 @@ public class PollVoteController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SuccessResponse<Void>> updatePollVote(
+    public ResponseEntity<SuccessResponse<PollVoteResponseDTO>> updatePollVote(
             @PathVariable Long id,
             @Valid @RequestBody PollVoteUpdateDTO request) {
-        pollVotesService.updatePollVote(id, request);
-        SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
+        PollVoteResponseDTO updatedPollVote = pollVotesService.updatePollVote(id, request);
+        SuccessResponse<PollVoteResponseDTO> resp = SuccessResponse.<PollVoteResponseDTO>builder()
                 .code(HttpStatus.OK.value())
                 .status(HttpStatus.OK)
                 .message("Poll vote updated successfully")
+                .data(updatedPollVote)
                 .build();
         return ResponseEntity.ok(resp);
     }
