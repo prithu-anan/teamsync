@@ -4,6 +4,7 @@ import com.teamsync.auth.dto.authDTO.*;
 import com.teamsync.auth.dto.userDTO.UserCreationDTO;
 import com.teamsync.auth.dto.userDTO.UserResponseDTO;
 import com.teamsync.auth.response.SuccessResponse;
+import com.teamsync.auth.response.ErrorResponse;
 import com.teamsync.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -211,22 +212,48 @@ public class AuthController {
     }
 
     @GetMapping(value = "/validate", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<SuccessResponse<Boolean>> validateToken(HttpServletRequest request) {
+    public ResponseEntity<?> validateToken(HttpServletRequest request) {
         String jwtToken = request.getHeader("Authorization");
-        boolean isValid = false;
         
         if (jwtToken != null && jwtToken.startsWith("Bearer ")) {
             jwtToken = jwtToken.substring(7);
-            isValid = authService.validateToken(jwtToken);
+            
+            // Check if token is blacklisted first
+            if (authService.isTokenBlacklisted(jwtToken)) {
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                        .code(HttpStatus.FORBIDDEN.value())
+                        .status(HttpStatus.FORBIDDEN)
+                        .message("Token has been blacklisted")
+                        .build();
+                return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+            }
+            
+            boolean isValid = authService.validateToken(jwtToken);
+            
+            if (!isValid) {
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                        .code(HttpStatus.FORBIDDEN.value())
+                        .status(HttpStatus.FORBIDDEN)
+                        .message("Token is invalid")
+                        .build();
+                return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+            }
+
+            SuccessResponse<Boolean> response = SuccessResponse.<Boolean>builder()
+                    .code(HttpStatus.OK.value())
+                    .status(HttpStatus.OK)
+                    .message("Token validation completed")
+                    .data(true)
+                    .build();
+
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } else {
+            ErrorResponse errorResponse = ErrorResponse.builder()
+                    .code(HttpStatus.BAD_REQUEST.value())
+                    .status(HttpStatus.BAD_REQUEST)
+                    .message("No valid token provided")
+                    .build();
+            return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
         }
-
-        SuccessResponse<Boolean> response = SuccessResponse.<Boolean>builder()
-                .code(HttpStatus.OK.value())
-                .status(HttpStatus.OK)
-                .message("Token validation completed")
-                .data(isValid)
-                .build();
-
-        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

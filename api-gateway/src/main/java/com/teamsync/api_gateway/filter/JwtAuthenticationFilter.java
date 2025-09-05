@@ -73,6 +73,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 log.debug("Authentication set for user: {} (token validated with blacklist check)", email);
                             } else {
                                 log.warn("Token validation failed or token is blacklisted for user: {}", email);
+                                // Return 403 Forbidden with error message for invalid/blacklisted tokens
+                                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                response.setContentType("application/json");
+                                response.setCharacterEncoding("UTF-8");
+                                response.getWriter().write("{\"error\":\"Token validation failed\",\"message\":\"Token is invalid or has been blacklisted\"}");
+                                return;
                             }
                         } catch (Exception authServiceEx) {
                             log.warn("Auth service validation failed for user: {}, falling back to local validation. Error: {}", 

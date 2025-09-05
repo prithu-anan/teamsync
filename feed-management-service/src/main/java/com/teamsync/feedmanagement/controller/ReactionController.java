@@ -12,7 +12,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
-@RequestMapping("/feedposts/{id}/reactions")
+@RequestMapping({"/feedposts/{id}/reactions", "/api/feedposts/{id}/reactions"})
 @RequiredArgsConstructor
 public class ReactionController {
 

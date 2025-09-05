@@ -38,9 +38,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Check if token is blacklisted
                 if (tokenBlacklistService.isTokenBlacklisted(jwt)) {
                     log.warn("Blacklisted token used: {}", jwt);
-                    // Don't set authentication for blacklisted tokens
-                    // Continue with filter chain but without authentication
-                    filterChain.doFilter(request, response);
+                    // Return 403 Forbidden with error message for blacklisted tokens
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.setCharacterEncoding("UTF-8");
+                    response.getWriter().write("{\"error\":\"Token has been blacklisted\",\"message\":\"This token is no longer valid and has been blacklisted\"}");
                     return;
                 }
 

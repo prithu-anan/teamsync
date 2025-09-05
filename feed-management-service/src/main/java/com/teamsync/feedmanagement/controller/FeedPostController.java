@@ -17,7 +17,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
-@RequestMapping("/feedposts")
+@RequestMapping({"/feedposts", "/api/feedposts"})
 @RequiredArgsConstructor
 public class FeedPostController {
 

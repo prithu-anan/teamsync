@@ -46,5 +46,22 @@ public class Routes {
                 .route(RequestPredicates.path("/api/tasks/**"), HandlerFunctions.http("http://task-management-service:8089"))
                 .build();
     }
+
+    @Bean
+    public RouterFunction<ServerResponse> feedManagementService() {
+        return GatewayRouterFunctions.route("feed_management_service")
+                .route(RequestPredicates.path("/api/feedposts/**"), HandlerFunctions.http("http://feed-management-service:8090"))
+                .route(RequestPredicates.path("/api/events/**"), HandlerFunctions.http("http://feed-management-service:8090"))
+                .route(RequestPredicates.path("/api/pollvotes/**"), HandlerFunctions.http("http://feed-management-service:8090"))
+                .route(RequestPredicates.path("/api/appreciations/**"), HandlerFunctions.http("http://feed-management-service:8090"))
+                .build();
+    }
+
+    @Bean
+    public RouterFunction<ServerResponse> messageManagementService() {
+        return GatewayRouterFunctions.route("message_management_service")
+                .route(RequestPredicates.path("/api/channels/**"), HandlerFunctions.http("http://message-management-service:8091"))
+                .build();
+    }
     
 }
