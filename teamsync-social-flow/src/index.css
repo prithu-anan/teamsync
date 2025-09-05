@@ -1,0 +1,321 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 215 100% 34%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 199 89% 48%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 215 100% 20%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 215 100% 34%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 215 100% 25%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 215 100% 25%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    
+    --sidebar-background: 215 100% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 215 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 100% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 100% 15%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/50;
+}
+
+/* Slim scrollbar for conversation list that appears only on hover */
+.conversation-scroll-area {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.conversation-scroll-area::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+.conversation-scroll-area:hover {
+  scrollbar-width: thin; /* Firefox */
+}
+
+.conversation-scroll-area:hover::-webkit-scrollbar {
+  width: 4px;
+}
+
+.conversation-scroll-area:hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conversation-scroll-area:hover::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/40 rounded-full;
+}
+
+.conversation-scroll-area:hover::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/60;
+}
+
+/* Task card styles */
+.task-card {
+  @apply border bg-card p-4 rounded-lg shadow-sm hover:shadow transition-all;
+}
+
+/* Avatar group styles */
+.avatar-group .avatar:not(:first-child) {
+  @apply -ml-3;
+}
+
+/* Progress bar animation */
+@keyframes progress {
+  from {
+    width: 0%;
+  }
+}
+
+.animate-progress {
+  animation: progress 1.5s ease-in-out;
+}
+
+/* Kanban board wooden background (realistic) */
+.kanban-board {
+  min-height: 100vh;
+  background: url('/wood-texture.jpg'); /* Place the wood image in public/wood-texture.jpg */
+  background-size: cover;
+  background-position: center;
+  @apply p-6 rounded-lg flex gap-6;
+}
+
+/* Sticky note color variants */
+.sticky-yellow { background-color: #FFF9B1; }
+.sticky-green  { background-color: #C8F7C5; }
+.sticky-blue   { background-color: #B5E3F7; }
+.sticky-pink   { background-color: #FFD1DC; }
+.sticky-orange { background-color: #FFD59E; }
+.sticky-purple { background-color: #E1D5FF; }
+
+.task-card {
+  /* Remove previous bg-yellow-50 etc. */
+  @apply border p-4 rounded-lg shadow-md hover:shadow-lg transition-all;
+  background-image: none;
+  /* transform: rotate(-1deg); */ /* Removed incline effect */
+  transition: transform 0.2s cubic-bezier(0.4,0,0.2,1), box-shadow 0.2s;
+}
+
+.task-card:hover {
+  transform: scale(1.03); /* Removed rotate, kept scale */
+}
+
+.task-card.dragging {
+  @apply shadow-2xl;
+  transform: rotate(0deg) scale(1.08);
+  z-index: 50;
+  opacity: 0.95;
+}
+
+/* Task card transition animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-card {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Water and Bubble Animations */
+@keyframes bubbleUp {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.2;
+  }
+  10% {
+    opacity: 0.4;
+  }
+  80% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-100vh) scale(1.1);
+    opacity: 0;
+  }
+}
+
+.bubble-anim {
+  animation: bubbleUp linear infinite;
+}
+
+@keyframes waterGradient {
+  0% { filter: blur(0px) brightness(0.97); }
+  100% { filter: blur(2px) brightness(1.03); }
+}
+
+.animate-water-bg {
+  animation: waterGradient 18s ease-in-out infinite alternate;
+}
+
+/* Chatbot markdown styles */
+.chatbot-prose {
+  @apply text-sm leading-relaxed;
+}
+
+.chatbot-prose p {
+  @apply mb-2 last:mb-0;
+}
+
+.chatbot-prose ul {
+  @apply list-disc list-inside mb-2 space-y-1;
+}
+
+.chatbot-prose ol {
+  @apply list-decimal list-inside mb-2 space-y-1;
+}
+
+.chatbot-prose li {
+  @apply mb-1;
+}
+
+.chatbot-prose strong {
+  @apply font-semibold;
+}
+
+.chatbot-prose em {
+  @apply italic;
+}
+
+.chatbot-prose blockquote {
+  @apply border-l-4 border-blue-500 pl-4 italic bg-blue-50 p-2 rounded text-sm;
+}
+
+.chatbot-prose code {
+  @apply bg-gray-200 px-1 py-0.5 rounded text-xs font-mono;
+}
+
+.chatbot-prose pre {
+  @apply bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-2;
+}
+
+.chatbot-prose pre code {
+  @apply bg-transparent p-0 text-sm;
+}
+
+.chatbot-prose h1, .chatbot-prose h2, .chatbot-prose h3, .chatbot-prose h4, .chatbot-prose h5, .chatbot-prose h6 {
+  @apply font-semibold mb-2 mt-3 first:mt-0;
+}
+
+.chatbot-prose h1 { @apply text-lg; }
+.chatbot-prose h2 { @apply text-base; }
+.chatbot-prose h3 { @apply text-sm; }
+
+.chatbot-prose table {
+  @apply w-full border-collapse border border-gray-300 my-2;
+}
+
+.chatbot-prose th, .chatbot-prose td {
+  @apply border border-gray-300 px-2 py-1 text-xs;
+}
+
+.chatbot-prose th {
+  @apply bg-gray-100 font-semibold;
+}
+
+.chatbot-prose a {
+  @apply text-blue-600 underline;
+}
+
+.chatbot-prose hr {
+  @apply border-gray-300 my-3;
+}
