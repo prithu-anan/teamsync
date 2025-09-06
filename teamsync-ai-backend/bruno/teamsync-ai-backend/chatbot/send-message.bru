@@ -1,0 +1,66 @@
+meta {
+  name: Send Message
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{BASE_URL}}/chatbot/{{userId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+   "query":"what tools do I have?"
+  }
+}
+
+docs {
+  name: Send Message
+  description: Send a message to the chatbot and get a response
+  params: |
+    - userId: Unique identifier for the user
+    - userQuery: The message/query from the user
+    - context (optional): Collection name for RAG context (if provided, uses RAG; otherwise uses agent)
+    - jwt: JWT token for authentication (MANDATORY - agent decides whether to use tools or not)
+  request: |
+    ```json
+    {
+      "query": "Tell me about Suhas",
+      "context": "about_us"
+    }
+    ```
+  response: |
+    Returns the AI response with metadata.
+    
+    Example responses:
+    
+    **RAG Response (with context):**
+    ```json
+    {
+      "answer": "Suhas Abdullah is a Computer Science and Engineering student...",
+      "response_type": "rag",
+      "context": "suhas_profile_chunks",
+      "user_id": "user123",
+      "message_count": 4,
+      "error": null
+    }
+    ```
+    
+    **Agent Response (no context - agent decides whether to use tools):**
+    ```json
+    {
+      "answer": "Based on your profile, you are Sadat (ID: 1, Email: sadat@gmail.com). You have a task 'Implement Login Page' with high priority due on 2025-02-01.",
+      "response_type": "agent",
+      "context": null,
+      "user_id": "user123",
+      "message_count": 4,
+      "error": null
+    }
+    ```
+}
