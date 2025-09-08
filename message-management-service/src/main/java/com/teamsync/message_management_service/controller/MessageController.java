@@ -8,6 +8,7 @@ import com.teamsync.message_management_service.dto.MessageUpdateDTO;
 
 import com.teamsync.message_management_service.response.SuccessResponse;
 import com.teamsync.message_management_service.service.MessageService;
+import com.teamsync.message_management_service.service.WebSocketService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,7 @@ import java.util.List;
 public class MessageController {
 
         private final MessageService messageService;
+        private final WebSocketService webSocketService;
 
         @GetMapping("/{channelId}/messages")
         public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> getChannelMessages(
@@ -45,6 +47,16 @@ public class MessageController {
                         @PathVariable Long channelId,
                         @Valid @RequestBody MessageCreationDTO requestDto) {
                 MessageResponseDTO responseDto = messageService.createChannelMessage(channelId, requestDto);
+                
+                // Broadcast the new message via WebSocket
+                if (requestDto.recipientId() != null) {
+                        // Direct message
+                        webSocketService.broadcastDirectMessage(requestDto.recipientId(), responseDto);
+                } else {
+                        // Channel message
+                        webSocketService.broadcastNewMessage(channelId, responseDto);
+                }
+                
                 SuccessResponse<MessageResponseDTO> resp = SuccessResponse.<MessageResponseDTO>builder()
                                 .code(HttpStatus.CREATED.value())
                                 .status(HttpStatus.CREATED)
@@ -73,6 +85,17 @@ public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> createMessageWi
             fileDtos, isPinned);  // Add isPinned parameter
 
     List<MessageResponseDTO> responseDtos = messageService.createMessageWithFiles(requestDto);
+
+    // Broadcast the new messages via WebSocket
+    for (MessageResponseDTO responseDto : responseDtos) {
+        if (requestDto.recipientId() != null) {
+            // Direct message
+            webSocketService.broadcastDirectMessage(requestDto.recipientId(), responseDto);
+        } else if (channelId != null) {
+            // Channel message
+            webSocketService.broadcastNewMessage(channelId, responseDto);
+        }
+    }
 
     SuccessResponse<List<MessageResponseDTO>> resp = SuccessResponse.<List<MessageResponseDTO>>builder()
             .code(HttpStatus.CREATED.value())
@@ -107,6 +130,16 @@ public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> createMessageWi
                 String userEmail = "a@b.com";
                 MessageResponseDTO responseDto = messageService.updateChannelMessage(channelId, messageId, requestDto,
                                 userEmail);
+                
+                // Broadcast the message update via WebSocket
+                if (requestDto.recipientId() != null) {
+                        // Direct message
+                        webSocketService.broadcastDirectMessageUpdate(requestDto.recipientId(), responseDto);
+                } else {
+                        // Channel message
+                        webSocketService.broadcastMessageUpdate(channelId, responseDto);
+                }
+                
                 SuccessResponse<MessageResponseDTO> resp = SuccessResponse.<MessageResponseDTO>builder()
                                 .code(HttpStatus.OK.value())
                                 .status(HttpStatus.OK)
@@ -121,6 +154,10 @@ public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> createMessageWi
                         @PathVariable Long channelId,
                         @PathVariable Long messageId) {
                 messageService.deleteChannelMessage(channelId, messageId);
+                
+                // Broadcast the message deletion via WebSocket
+                webSocketService.broadcastMessageDeletion(channelId, messageId);
+                
                 SuccessResponse<Void> resp = SuccessResponse.<Void>builder()
                                 .code(HttpStatus.NO_CONTENT.value())
                                 .status(HttpStatus.OK)

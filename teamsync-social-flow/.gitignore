@@ -27,3 +27,5 @@ test-results
 playwright-report
 teamsync-api
 coverage
+
+.env

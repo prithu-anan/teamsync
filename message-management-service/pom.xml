@@ -157,6 +157,12 @@
 			<artifactId>azure-storage-blob</artifactId>
 			<version>12.31.2</version>
 		</dependency>
+
+		<!-- WebSocket -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>

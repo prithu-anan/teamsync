@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Hash, Users, Plus, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import {
   sendFileMessage
 } from "@/utils/api-helpers";
 import { toast } from "@/components/ui/use-toast";
+import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import type { Channel, Message, User } from "@/types/messages";
 
 const ChannelInfoSidebar = ({ channel, onMemberClick }: { channel: Channel; onMemberClick?: (user: User) => void }) => {
@@ -123,6 +124,117 @@ const Messages = () => {
   const [loading, setLoading] = useState(false);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState<{[id: string]: number}>({});
+
+  // Get WebSocket context
+  const { 
+    isConnected: webSocketConnected, 
+    subscribeToChannel, 
+    subscribeToUser, 
+    unsubscribeFromChannel, 
+    unsubscribeFromUser 
+  } = useWebSocketContext();
+
+  // WebSocket handlers - using useCallback to prevent unnecessary re-renders
+  const handleWebSocketMessage = useCallback((message: Message) => {
+    console.log('New message received via WebSocket:', message);
+    setAllMessages(prev => {
+      // Check if message already exists to avoid duplicates
+      const exists = prev.some(m => m.id === message.id);
+      if (exists) {
+        return prev;
+      }
+      return [...prev, message];
+    });
+  }, []);
+
+  const handleWebSocketMessageUpdate = useCallback((message: Message) => {
+    console.log('Message updated via WebSocket:', message);
+    setAllMessages(prev => prev.map(m => 
+      m.id === message.id ? message : m
+    ));
+  }, []);
+
+  const handleWebSocketMessageDeletion = useCallback((messageId: string) => {
+    console.log('Message deleted via WebSocket:', messageId);
+    setAllMessages(prev => prev.filter(m => m.id !== messageId));
+  }, []);
+
+  // Create a reusable message handler
+  const createMessageHandler = useCallback((data: any) => {
+    if (data.type === 'DELETE') {
+      if (data.messageId) {
+        handleWebSocketMessageDeletion(data.messageId.toString());
+      }
+      return;
+    }
+
+    if (data.id || data.messageId) {
+      const message: Message = {
+        id: data.id?.toString() || data.messageId?.toString() || '',
+        sender_id: data.sender_id?.toString() || '',
+        channel_id: data.channel_id?.toString() || null,
+        recipient_id: data.recipient_id?.toString() || null,
+        content: data.content || '',
+        timestamp: data.timestamp || new Date().toISOString(),
+        thread_parent_id: data.thread_parent_id?.toString() || null,
+        userName: data.userName || 'Unknown User',
+        userAvatar: data.userAvatar || '/placeholder.svg',
+        file_url: data.file_url || null,
+        file_type: data.file_type || null,
+        fileUrl: data.file_url || data.fileUrl || null,
+        fileName: data.file_name || data.fileName || 'file',
+        imageUrl: data.file_type?.startsWith('image/') ? data.file_url : null,
+        reactions: data.reactions || [],
+      };
+
+      if (data.type === 'UPDATE') {
+        handleWebSocketMessageUpdate(message);
+      } else {
+        handleWebSocketMessage(message);
+      }
+    }
+  }, [handleWebSocketMessage, handleWebSocketMessageUpdate, handleWebSocketMessageDeletion]);
+
+  // Subscribe to WebSocket messages when selectedChannel changes
+  useEffect(() => {
+    if (!selectedChannel || !webSocketConnected) {
+      return;
+    }
+
+    console.log('Subscribing to channel:', selectedChannel);
+
+    // Subscribe to channel messages
+    if (selectedChannel.type === 'group' && selectedChannel.channel_id) {
+      subscribeToChannel(selectedChannel.channel_id, createMessageHandler);
+    } else if (selectedChannel.type === 'direct' && selectedChannel.recipient_id) {
+      subscribeToUser(selectedChannel.recipient_id, createMessageHandler);
+    }
+
+    // Cleanup function
+    return () => {
+      console.log('Unsubscribing from channel:', selectedChannel);
+      if (selectedChannel.type === 'group' && selectedChannel.channel_id) {
+        unsubscribeFromChannel(selectedChannel.channel_id);
+      } else if (selectedChannel.type === 'direct' && selectedChannel.recipient_id) {
+        unsubscribeFromUser(selectedChannel.recipient_id);
+      }
+    };
+  }, [selectedChannel, webSocketConnected]); // Removed function dependencies to prevent loops
+
+  // Subscribe to user-specific messages for direct messages
+  useEffect(() => {
+    if (!user?.id || !webSocketConnected) {
+      return;
+    }
+
+    console.log('Subscribing to user messages for user:', user.id);
+    subscribeToUser(user.id, createMessageHandler);
+
+    return () => {
+      console.log('Unsubscribing from user messages for user:', user.id);
+      unsubscribeFromUser(user.id);
+    };
+  }, [user?.id, webSocketConnected]); // Removed createMessageHandler from dependencies
 
   // Fetch all channels and filter by type
   const fetchChannels = async () => {
@@ -481,7 +593,7 @@ const Messages = () => {
             content: msg.content || '',
             timestamp: new Date().toISOString(),
             userName: user?.name || 'You',
-            userAvatar: user?.avatar || '/placeholder.svg',
+            userAvatar: user?.profilePicture || '/placeholder.svg',
           };
           setAllMessages(prev => [...prev, newMessage]);
           return;
@@ -549,31 +661,34 @@ const Messages = () => {
             await fetchMessages(selectedChannel);
             setMessagesLoading(false);
           } else {
-            // For text messages, add optimistically
-            const newMessage: Message = {
-              id: `msg-${Date.now()}`, // Temporary ID until we get the real one
-              sender_id: user?.id || '',
-              channel_id: selectedChannel.channel_id || null,
-              recipient_id: selectedChannel.recipient_id || null,
-              content: msg.content || '',
-              timestamp: new Date().toISOString(),
-              userName: user?.name || 'You',
-              userAvatar: user?.avatar || '/placeholder.svg',
-              isOptimistic: true, // Mark as optimistic for styling
-            };
+            // For text messages, only add optimistically if WebSocket is not connected
+            // If WebSocket is connected, the message will be received via WebSocket
+            if (!webSocketConnected) {
+              const newMessage: Message = {
+                id: `msg-${Date.now()}`, // Temporary ID until we get the real one
+                sender_id: user?.id || '',
+                channel_id: selectedChannel.channel_id || null,
+                recipient_id: selectedChannel.recipient_id || null,
+                content: msg.content || '',
+                timestamp: new Date().toISOString(),
+                userName: user?.name || 'You',
+                userAvatar: user?.profilePicture || '/placeholder.svg',
+                isOptimistic: true, // Mark as optimistic for styling
+              };
 
-            setAllMessages(prev => [...prev, newMessage]);
-            
-            // Remove the optimistic flag after a short delay to show the message is confirmed
-            setTimeout(() => {
-              setAllMessages(prev => 
-                prev.map(m => 
-                  m.id === newMessage.id 
-                    ? { ...m, isOptimistic: false }
-                    : m
-                )
-              );
-            }, 1000); // Remove optimistic flag after 1 second
+              setAllMessages(prev => [...prev, newMessage]);
+              
+              // Remove the optimistic flag after a short delay to show the message is confirmed
+              setTimeout(() => {
+                setAllMessages(prev => 
+                  prev.map(m => 
+                    m.id === newMessage.id 
+                      ? { ...m, isOptimistic: false }
+                      : m
+                  )
+                );
+              }, 1000); // Remove optimistic flag after 1 second
+            }
           }
           
           return;
@@ -659,7 +774,7 @@ const Messages = () => {
         timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 minutes ago
         thread_parent_id: null,
         userName: user?.name || 'You',
-        userAvatar: user?.avatar || '/placeholder.svg',
+        userAvatar: user?.profilePicture || '/placeholder.svg',
         reactions: [],
       },
     ];
@@ -706,7 +821,7 @@ const Messages = () => {
         timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
         thread_parent_id: null,
         userName: user?.name || 'You',
-        userAvatar: user?.avatar || '/placeholder.svg',
+        userAvatar: user?.profilePicture || '/placeholder.svg',
         reactions: [],
       },
     ];
@@ -721,7 +836,11 @@ const Messages = () => {
           {/* Fixed header */}
           <div className="p-4 border-b border-border bg-background/50 flex-shrink-0">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Messages</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Messages</h2>
+                <div className={`w-2 h-2 rounded-full ${webSocketConnected ? 'bg-green-500' : 'bg-red-500'}`} 
+                     title={webSocketConnected ? 'Connected' : 'Disconnected'} />
+              </div>
               <Button variant="ghost" size="icon" onClick={() => setShowNewConversationDialog(true)}>
                 <Plus className="h-4 w-4" />
               </Button>
