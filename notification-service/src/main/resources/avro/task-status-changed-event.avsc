@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "TaskStatusChangedEvent",
+  "namespace": "com.teamsync.notificationservice.event",
+  "fields": [
+    {"name": "taskId", "type": "long"},
+    {"name": "taskTitle", "type": "string"},
+    {"name": "oldStatus", "type": "string"},
+    {"name": "newStatus", "type": "string"},
+    {"name": "changedByUserId", "type": "long"},
+    {"name": "assignedToUserId", "type": ["null", "long"], "default": null},
+    {"name": "projectId", "type": "long"},
+    {"name": "projectTitle", "type": "string"},
+    {"name": "changedAt", "type": "string"},
+    {"name": "comment", "type": ["null", "string"], "default": null}
+  ]
+}

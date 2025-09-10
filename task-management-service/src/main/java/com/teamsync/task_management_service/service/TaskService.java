@@ -22,8 +22,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
+
 import com.teamsync.task_management_service.event.ProjectDeletedEvent;
+import com.teamsync.task_management_service.event.TaskAssignedEvent;
+import com.teamsync.task_management_service.event.TaskStatusChangedEvent;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -42,6 +47,8 @@ public class TaskService {
     private final TaskStatusHistoryMapper statusHistoryMapper;
     private final UserClient userClient;
     private final ProjectClient projectClient;
+    @Autowired
+    private KafkaTemplate<String, Object> kafkaTemplate;
 
     public TaskResponseDTO getTaskById(Long id) {
         if (id == null) {
@@ -118,6 +125,8 @@ public class TaskService {
         }
 
         Tasks savedTask = tasksRepository.save(task);
+        // *************************************************************************************
+        publishTaskAssignedEvent(savedTask, project.getTitle());
 
         // Update parent deadlines recursively if this task has a parent and a deadline
         if (parentTask != null && savedTask.getDeadline() != null) {
@@ -233,7 +242,7 @@ public class TaskService {
         if (projectId == null) {
             throw new IllegalArgumentException("Project ID cannot be null");
         }
-        
+
         try {
             log.info("Deleting all tasks for project ID: {}", projectId);
             int deletedCount = tasksRepository.deleteByProjectId(projectId);
@@ -250,21 +259,19 @@ public class TaskService {
      * 
      * @param event the ProjectDeletedEvent containing project deletion information
      */
-    @KafkaListener(
-        topics = "project-deleted", 
-        groupId = "task-service"
-    )
+    @KafkaListener(topics = "project-deleted", groupId = "task-service")
     @Transactional
     public void handleProjectDeletedEvent(ProjectDeletedEvent event) {
         Long projectId = event.getProjectId();
         log.info("Received ProjectDeletedEvent for project ID: {}, title: {}", projectId, event.getProjectTitle());
-        
+
         try {
             deleteTasksByProjectId(projectId);
             log.info("Successfully processed ProjectDeletedEvent for project ID: {}", projectId);
         } catch (Exception e) {
             log.error("Failed to process ProjectDeletedEvent for project ID {}: {}", projectId, e.getMessage(), e);
-            // In a production environment, you might want to implement retry logic or dead letter queue
+            // In a production environment, you might want to implement retry logic or dead
+            // letter queue
             throw e;
         }
     }
@@ -276,7 +283,8 @@ public class TaskService {
 
         // Verify project exists
         SuccessResponse<Boolean> projectExistsResponse = projectClient.existsById(projectId);
-        if (projectExistsResponse == null || projectExistsResponse.getData() == null || !projectExistsResponse.getData()) {
+        if (projectExistsResponse == null || projectExistsResponse.getData() == null
+                || !projectExistsResponse.getData()) {
             throw new NotFoundException("Project not found with id: " + projectId);
         }
 
@@ -293,7 +301,8 @@ public class TaskService {
 
         // Verify project exists
         SuccessResponse<Boolean> projectExistsResponse = projectClient.existsById(projectId);
-        if (projectExistsResponse == null || projectExistsResponse.getData() == null || !projectExistsResponse.getData()) {
+        if (projectExistsResponse == null || projectExistsResponse.getData() == null
+                || !projectExistsResponse.getData()) {
             throw new NotFoundException("Project not found with id: " + projectId);
         }
 
@@ -439,6 +448,7 @@ public class TaskService {
             throw new UnauthorizedException("You are not authorized to revert back a completed task");
         }
 
+        Tasks.TaskStatus oldStatus = task.getStatus();
         task.setStatus(Tasks.TaskStatus.valueOf(dto.getStatus()));
         tasksRepository.save(task);
 
@@ -448,6 +458,8 @@ public class TaskService {
             throw new NotFoundException("Current user not found with email: " + userEmail);
         }
         UserResponseDTO currentUser = currentUserResponse.getData();
+        
+        publishTaskStatusChangedEvent(task, oldStatus.name(), dto.getStatus(), currentUser.getId(), dto.getComment());
 
         TaskStatusHistory statusHistory = TaskStatusHistory.builder()
                 .task(task)
@@ -471,7 +483,7 @@ public class TaskService {
             throw new NotFoundException("Current user not found with email: " + userEmail);
         }
         UserResponseDTO currentUser = currentUserResponse.getData();
-        
+
         List<Tasks> tasks = tasksRepository.findUserInvolvedTasks(currentUser.getId());
         return tasks.stream()
                 .map(this::buildTaskResponseDto)
@@ -484,7 +496,7 @@ public class TaskService {
             throw new NotFoundException("Current user not found with email: " + userEmail);
         }
         UserResponseDTO currentUser = currentUserResponse.getData();
-        
+
         List<Tasks> tasks = tasksRepository.findTasksAssignedToUser(currentUser.getId());
         return tasks.stream()
                 .map(this::buildTaskResponseDto)
@@ -543,4 +555,47 @@ public class TaskService {
         }
     }
 
+    // Add this method after createTask method
+    private void publishTaskAssignedEvent(Tasks task, String projectTitle) {
+        if (task.getAssignedTo() != null) {
+            TaskAssignedEvent event = TaskAssignedEvent.newBuilder()
+                    .setTaskId(task.getId())
+                    .setTaskTitle(task.getTitle())
+                    .setAssignedToUserId(task.getAssignedTo())
+                    .setAssignedByUserId(task.getAssignedBy())
+                    .setProjectId(task.getProject())
+                    .setProjectTitle(projectTitle)
+                    .setAssignedAt(task.getAssignedAt().toString())
+                    .setDeadline(task.getDeadline() != null ? task.getDeadline().toString() : null)
+                    .setPriority(task.getPriority() != null ? task.getPriority().name() : null)
+                    .build();
+
+            kafkaTemplate.send("task-assigned", event);
+            log.info("Published TaskAssignedEvent for task: {}", task.getId());
+        }
+    }
+
+    private void publishTaskStatusChangedEvent(Tasks task, String oldStatus, String newStatus, Long changedByUserId,
+            String comment) {
+        // Get project title
+        SuccessResponse<ProjectDTO> projectResponse = projectClient.findById(task.getProject());
+        String projectTitle = projectResponse.getData() != null ? projectResponse.getData().getTitle()
+                : "Unknown Project";
+
+        TaskStatusChangedEvent event = TaskStatusChangedEvent.newBuilder()
+                .setTaskId(task.getId())
+                .setTaskTitle(task.getTitle())
+                .setOldStatus(oldStatus)
+                .setNewStatus(newStatus)
+                .setChangedByUserId(changedByUserId)
+                .setAssignedToUserId(task.getAssignedTo())
+                .setProjectId(task.getProject())
+                .setProjectTitle(projectTitle)
+                .setChangedAt(java.time.ZonedDateTime.now().toString())
+                .setComment(comment)
+                .build();
+
+        kafkaTemplate.send("task-status-changed", event);
+        log.info("Published TaskStatusChangedEvent for task: {}", task.getId());
+    }
 }

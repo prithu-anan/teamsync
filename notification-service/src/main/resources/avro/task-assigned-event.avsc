@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "TaskAssignedEvent",
+  "namespace": "com.teamsync.notificationservice.event",
+  "fields": [
+    {"name": "taskId", "type": "long"},
+    {"name": "taskTitle", "type": "string"},
+    {"name": "assignedToUserId", "type": "long"},
+    {"name": "assignedByUserId", "type": "long"},
+    {"name": "projectId", "type": "long"},
+    {"name": "projectTitle", "type": "string"},
+    {"name": "assignedAt", "type": "string"},
+    {"name": "deadline", "type": ["null", "string"], "default": null},
+    {"name": "priority", "type": ["null", "string"], "default": null}
+  ]
+}

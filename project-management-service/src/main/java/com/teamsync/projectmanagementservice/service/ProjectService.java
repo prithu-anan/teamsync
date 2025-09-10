@@ -11,7 +11,11 @@ import com.teamsync.projectmanagementservice.repository.ProjectRepository;
 import com.teamsync.usermanagement.event.UserDeletedEvent;
 import com.teamsync.projectmanagementservice.client.UserClient;
 import com.teamsync.projectmanagementservice.event.ProjectDeletedEvent;
+import com.teamsync.projectmanagementservice.event.ProjectMemberAddedEvent;
+import  com.teamsync.projectmanagementservice.config.KafkaProducerConfig;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -38,7 +42,12 @@ public class ProjectService {
     @Autowired
     private ProjectMapper projectMapper;
     @Autowired
-    private KafkaTemplate<String, ProjectDeletedEvent> kafkaTemplate;
+    @Qualifier("jsonKafkaTemplate")
+    private KafkaTemplate<String, Object> jsonKafkaTemplate;
+
+    @Autowired
+    @Qualifier("avroKafkaTemplate")
+    private KafkaTemplate<String, Object> avroKafkaTemplate;
 
     @KafkaListener(topics = "user-deleted")
     @Transactional
@@ -126,18 +135,18 @@ public class ProjectService {
     public void updateProject(Long id, ProjectUpdateDTO updateProjectDto, String userEmail) {
         Projects project = projectsRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Project not found with id: " + id));
-        
+
         // Check if the current user is the project creator
         SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
         UserResponseDTO currentUser = currentUserResponse.getData();
         if (currentUser == null) {
             throw new NotFoundException("User not found with email: " + userEmail);
         }
-        
+
         if (!project.getCreatedBy().equals(currentUser.getId())) {
             throw new UnauthorizedException("Only the project creator can update the project");
         }
-        
+
         project.setTitle(updateProjectDto.getTitle());
         project.setDescription(updateProjectDto.getDescription());
         if (updateProjectDto.getMembers() != null) {
@@ -173,36 +182,36 @@ public class ProjectService {
         if (id == null) {
             throw new IllegalArgumentException("Project ID cannot be null");
         }
-        
+
         Projects project = projectsRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Project with ID " + id + " not found"));
-        
+
         // Check if the current user is the project creator
         SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
         UserResponseDTO currentUser = currentUserResponse.getData();
         if (currentUser == null) {
             throw new NotFoundException("User not found with email: " + userEmail);
         }
-        
+
         if (!project.getCreatedBy().equals(currentUser.getId())) {
             throw new UnauthorizedException("Only the project creator can delete the project");
         }
-        
+
         try {
-            // Delete the project (this will cascade delete project members due to FK constraint)
+            // Delete the project (this will cascade delete project members due to FK
+            // constraint)
             projectsRepository.deleteById(id);
             log.info("Successfully deleted project with ID: {}", id);
-            
+
             // Publish event to notify other services about project deletion
             ProjectDeletedEvent event = new ProjectDeletedEvent(
-                id, 
-                project.getTitle(), 
-                currentUser.getId(), 
-                java.time.ZonedDateTime.now().toString()
-            );
-            kafkaTemplate.send("project-deleted", event);
+                    id,
+                    project.getTitle(),
+                    currentUser.getId(),
+                    java.time.ZonedDateTime.now().toString());
+            jsonKafkaTemplate.send("project-deleted", event);
             log.info("Published ProjectDeletedEvent for project ID: {}", id);
-            
+
         } catch (Exception e) {
             log.error("Failed to delete project with ID {}: {}", id, e.getMessage(), e);
             throw new RuntimeException("Failed to delete project: " + e.getMessage(), e);
@@ -234,7 +243,7 @@ public class ProjectService {
         if (currentUser == null) {
             throw new NotFoundException("User not found with email: " + userEmail);
         }
-        
+
         if (!project.getCreatedBy().equals(currentUser.getId())) {
             throw new UnauthorizedException("Only the project creator can add members to the project");
         }
@@ -272,10 +281,13 @@ public class ProjectService {
 
         projectMembersRepository.save(newMember);
         // return projectMapper.toMemberDto(savedMember);
+        publishProjectMemberAddedEvent(project, user.getId(), currentUser.getId(), role.name());
+
     }
 
     @Transactional
-    public void updateMemberRole(Long projectId, Long userId, UpdateMemberRoleDTO updateMemberRoleDTO, String userEmail) {
+    public void updateMemberRole(Long projectId, Long userId, UpdateMemberRoleDTO updateMemberRoleDTO,
+            String userEmail) {
         ProjectMembers member = projectMembersRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new NotFoundException(
                         "Project member not found with projectId: " + projectId + " and userId: " + userId));
@@ -287,7 +299,7 @@ public class ProjectService {
         if (currentUser == null) {
             throw new NotFoundException("User not found with email: " + userEmail);
         }
-        
+
         if (!project.getCreatedBy().equals(currentUser.getId())) {
             throw new UnauthorizedException("Only the project creator can update member roles");
         }
@@ -314,7 +326,7 @@ public class ProjectService {
         ProjectMembers member = projectMembersRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new NotFoundException(
                         "Project member not found with projectId: " + projectId + " and userId: " + userId));
-        
+
         // Check if the current user is the project creator
         Projects project = member.getProject();
         SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
@@ -322,11 +334,11 @@ public class ProjectService {
         if (currentUser == null) {
             throw new NotFoundException("User not found with email: " + userEmail);
         }
-        
+
         if (!project.getCreatedBy().equals(currentUser.getId())) {
             throw new UnauthorizedException("Only the project creator can remove members from the project");
         }
-        
+
         projectMembersRepository.delete(member);
     }
 
@@ -357,7 +369,7 @@ public class ProjectService {
         if (currentUser == null) {
             throw new NotFoundException("User not found with email: " + userEmail);
         }
-        
+
         return getUserProjects(currentUser.getId());
     }
 
@@ -371,11 +383,25 @@ public class ProjectService {
         if (currentUser == null) {
             throw new NotFoundException("User not found with email: " + userEmail);
         }
-        
+
         return hasUserCreatedProjects(currentUser.getId());
     }
 
     public boolean existsById(Long id) {
         return projectsRepository.existsById(id);
+    }
+
+    private void publishProjectMemberAddedEvent(Projects project, Long userId, Long addedByUserId, String role) {
+        ProjectMemberAddedEvent event = ProjectMemberAddedEvent.newBuilder()
+                .setProjectId(project.getId())
+                .setProjectTitle(project.getTitle())
+                .setUserId(userId)
+                .setAddedByUserId(addedByUserId)
+                .setRole(role)
+                .setAddedAt(java.time.ZonedDateTime.now().toString())
+                .build();
+
+        avroKafkaTemplate.send("project-member-added", event);
+        log.info("Published ProjectMemberAddedEvent for project: {} and user: {}", project.getId(), userId);
     }
 }

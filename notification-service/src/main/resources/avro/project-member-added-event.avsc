@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "ProjectMemberAddedEvent",
+  "namespace": "com.teamsync.notificationservice.event",
+  "fields": [
+    {"name": "projectId", "type": "long"},
+    {"name": "projectTitle", "type": "string"},
+    {"name": "userId", "type": "long"},
+    {"name": "addedByUserId", "type": "long"},
+    {"name": "role", "type": "string"},
+    {"name": "addedAt", "type": "string"}
+  ]
+}

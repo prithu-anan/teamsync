@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  notification_mongo:
+    image: mongo:7.0
+    container_name: notification_mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: notification_db
+    volumes:
+      - notification_mongo_data:/data/db
+    networks:
+      - teamsync_network
+
+  notification-service:
+    build: .
+    container_name: notification_service
+    ports:
+      - "8092:8092"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://notification_mongo:27017/notification_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: broker:29092
+      SPRING_KAFKA_CONSUMER_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    depends_on:
+      - notification_mongo
+    networks:
+      - teamsync_network
+
+volumes:
+  notification_mongo_data:
+
+networks:
+  teamsync_network:
+    external: true
