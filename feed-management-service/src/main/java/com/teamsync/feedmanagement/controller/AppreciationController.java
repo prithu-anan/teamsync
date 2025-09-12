@@ -59,11 +59,7 @@ public class AppreciationController {
         public ResponseEntity<SuccessResponse<AppreciationResponseDTO>> createAppreciation(
                         @Valid @RequestBody AppreciationCreateDTO createDTO) {
 
-                // Authentication authentication =
-                // SecurityContextHolder.getContext().getAuthentication();
-                // String userEmail = authentication.getName();
-                String userEmail = "a@b.com";
-
+                String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
                 AppreciationResponseDTO createdAppreciation = appreciationService.createAppreciation(createDTO,
                                 userEmail);
 
@@ -82,11 +78,7 @@ public class AppreciationController {
                         @PathVariable Long id,
                         @Valid @RequestBody AppreciationUpdateDTO updateDTO) {
 
-                // Authentication authentication =
-                // SecurityContextHolder.getContext().getAuthentication();
-                // String userEmail = authentication.getName();
-                String userEmail = "a@b.com";
-
+                String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
                 AppreciationResponseDTO updatedAppreciation = appreciationService.updateAppreciation(id, updateDTO,
                                 userEmail);
 

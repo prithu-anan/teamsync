@@ -7,6 +7,7 @@ import com.teamsync.feedmanagement.service.ReactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -35,7 +36,8 @@ public class ReactionController {
         public ResponseEntity<SuccessResponse<ReactionResponseDTO>> addReaction(
                         @PathVariable Long id,
                         @Valid @RequestBody ReactionCreateRequestDTO request) {
-                ReactionResponseDTO reaction = reactionService.addReaction(id, request);
+                String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                ReactionResponseDTO reaction = reactionService.addReaction(id, request, userEmail);
                 SuccessResponse<ReactionResponseDTO> resp = SuccessResponse.<ReactionResponseDTO>builder()
                                 .code(HttpStatus.CREATED.value())
                                 .status(HttpStatus.CREATED)
@@ -63,7 +65,8 @@ public class ReactionController {
         public ResponseEntity<SuccessResponse<ReactionResponseDTO>> updateReaction(
                         @PathVariable Long id,
                         @Valid @RequestBody ReactionCreateRequestDTO request) {
-                ReactionResponseDTO reaction = reactionService.updateReaction(id, request);
+                String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                ReactionResponseDTO reaction = reactionService.updateReaction(id, request, userEmail);
                 SuccessResponse<ReactionResponseDTO> resp = SuccessResponse.<ReactionResponseDTO>builder()
                                 .code(HttpStatus.OK.value())
                                 .status(HttpStatus.OK)

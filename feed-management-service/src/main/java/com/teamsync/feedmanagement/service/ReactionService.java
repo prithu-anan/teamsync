@@ -39,14 +39,15 @@ public class ReactionService {
         return reactionMapper.reactionsResponseToDTO(reactions);
     }
 
-    public ReactionResponseDTO addReaction(Long postId, ReactionCreateRequestDTO request) {
+    public ReactionResponseDTO addReaction(Long postId, ReactionCreateRequestDTO request, String userEmail) {
         FeedPosts post = feedPostRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("FeedPost not found with id: " + postId));
 
-                  UserResponseDTO user = userClient.findById(request.getUserId()).getData(); // FIX: Extract data from SuccessResponse
-    if (user == null) { // FIX: Handle null response properly
-        throw new NotFoundException("User not found with id: " + request.getUserId());
-    }
+        // Get user by email instead of by ID
+        UserResponseDTO user = userClient.findByEmail(userEmail).getData();
+        if (user == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
 
         Reactions.ReactionType reactionType;
         try {
@@ -56,7 +57,7 @@ public class ReactionService {
         }
 
         // Check if user already has this reaction on this post
-        List<Reactions> existingReactions = reactionRepository.findByUserIdAndPostId(request.getUserId(), postId);
+        List<Reactions> existingReactions = reactionRepository.findByUserIdAndPostId(user.getId(), postId);
         boolean reactionExists = existingReactions.stream()
                 .anyMatch(r -> r.getReactionType() == reactionType);
 
@@ -106,13 +107,15 @@ public class ReactionService {
         reactionRepository.delete(targetReaction);
     }
 
-    public ReactionResponseDTO updateReaction(Long postId, ReactionCreateRequestDTO request) {
+    public ReactionResponseDTO updateReaction(Long postId, ReactionCreateRequestDTO request, String userEmail) {
         FeedPosts post = feedPostRepository.findById(postId)
                 .orElseThrow(() -> new NotFoundException("FeedPost not found with id: " + postId));
-  UserResponseDTO user = userClient.findById(request.getUserId()).getData(); // FIX: Extract data from SuccessResponse
-    if (user == null) { // FIX: Handle null response properly
-        throw new NotFoundException("User not found with id: " + request.getUserId());
-    }
+        
+        // Get user by email instead of by ID
+        UserResponseDTO user = userClient.findByEmail(userEmail).getData();
+        if (user == null) {
+            throw new NotFoundException("User not found with email: " + userEmail);
+        }
         Reactions.ReactionType reactionType;
         try {
             reactionType = Reactions.ReactionType.valueOf(request.getReactionType());
@@ -121,7 +124,7 @@ public class ReactionService {
         }
 
         // Find existing reactions for this user on this post
-        List<Reactions> existingReactions = reactionRepository.findByUserIdAndPostId(request.getUserId(), postId);
+        List<Reactions> existingReactions = reactionRepository.findByUserIdAndPostId(user.getId(), postId);
 
         // Remove all existing reactions for this user on this post
         reactionRepository.deleteAll(existingReactions);

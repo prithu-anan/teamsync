@@ -55,11 +55,7 @@ public class CommentController {
         public ResponseEntity<SuccessResponse<CommentResponseDTO>> createComment(
                         @PathVariable("id") Long postId,
                         @Valid @RequestBody CommentCreateRequestDTO requestDTO) {
-                // Authentication authentication =
-                // SecurityContextHolder.getContext().getAuthentication();
-                // String userEmail = authentication.getName();
-                String userEmail = "a@b.com";
-
+                String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
                 CommentResponseDTO comment = commentService.createComment(postId, requestDTO, userEmail);
                 return ResponseEntity.status(HttpStatus.CREATED).body(
                                 SuccessResponse.<CommentResponseDTO>builder()
@@ -162,7 +158,8 @@ public class CommentController {
                         @PathVariable("id") Long postId,
                         @PathVariable("commentId") Long commentId,
                         @Valid @RequestBody ReplyCreateRequestDTO requestDTO) {
-                CommentResponseDTO reply = commentService.addReplyToComment(postId, commentId, requestDTO);
+                String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                CommentResponseDTO reply = commentService.addReplyToComment(postId, commentId, requestDTO, userEmail);
                 return ResponseEntity.status(HttpStatus.CREATED).body(
                                 SuccessResponse.<CommentResponseDTO>builder()
                                                 .code(HttpStatus.CREATED.value())

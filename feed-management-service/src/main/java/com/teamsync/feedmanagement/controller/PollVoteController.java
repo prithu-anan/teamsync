@@ -37,11 +37,7 @@ public class PollVoteController {
     @PostMapping
     public ResponseEntity<SuccessResponse<PollVoteResponseDTO>> createPollVote(
             @Valid @RequestBody PollVoteCreationDTO request) {
-        // Authentication authentication =
-        // SecurityContextHolder.getContext().getAuthentication();
-        // String userEmail = authentication.getName();
-        String userEmail = "a@b.com";
-
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         PollVoteResponseDTO createdPollVote = pollVotesService.createPollVote(request, userEmail);
         SuccessResponse<PollVoteResponseDTO> resp = SuccessResponse.<PollVoteResponseDTO>builder()
                 .code(HttpStatus.CREATED.value())

@@ -281,7 +281,7 @@ public class CommentService {
                 return commentMapper.toResponseDTOList(replies);
         }
 
-        public CommentResponseDTO addReplyToComment(Long postId, Long commentId, ReplyCreateRequestDTO requestDTO) {
+        public CommentResponseDTO addReplyToComment(Long postId, Long commentId, ReplyCreateRequestDTO requestDTO, String userEmail) {
                 // Verify post exists
                 FeedPosts post = feedPostRepository.findById(postId)
                                 .orElseThrow(() -> new NotFoundException("Post not found with id: " + postId));
@@ -291,11 +291,11 @@ public class CommentService {
                                 .orElseThrow(() -> new NotFoundException(
                                                 "Comment not found with id: " + commentId + " for post: " + postId));
 
-                                                
-   UserResponseDTO author = userClient.findById(requestDTO.getAuthor_id()).getData(); // FIX: Extract data from SuccessResponse
-    if (author == null) { // FIX: Handle null response properly
-        throw new NotFoundException("User not found with id: " + requestDTO.getAuthor_id());
-    }
+                // Get user by email instead of by ID
+                UserResponseDTO author = userClient.findByEmail(userEmail).getData();
+                if (author == null) {
+                    throw new NotFoundException("User not found with email: " + userEmail);
+                }
 
                 // Create reply comment
                 Comments reply = Comments.builder()
