@@ -16,6 +16,9 @@ class WebSocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000; // Start with 1 second
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private lastHeartbeat = 0;
+  private heartbeatTimeout = 30000; // 30 seconds
 
   private messageHandlers: Map<string, (message: WebSocketMessage) => void> = new Map();
   private connectionHandlers: Array<(connected: boolean) => void> = [];
@@ -37,11 +40,14 @@ class WebSocketService {
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
+        this.lastHeartbeat = Date.now();
+        this.startHeartbeat();
         this.connectionHandlers.forEach(handler => handler(true));
       },
       onDisconnect: () => {
         console.log('WebSocket disconnected');
         this.isConnected = false;
+        this.stopHeartbeat();
         this.connectionHandlers.forEach(handler => handler(false));
         this.attemptReconnect();
       },
@@ -103,8 +109,40 @@ class WebSocketService {
   }
 
   public disconnect() {
+    this.stopHeartbeat();
     if (this.client && this.isConnected) {
       this.client.deactivate();
+    }
+  }
+
+  private startHeartbeat() {
+    this.stopHeartbeat(); // Clear any existing heartbeat
+    this.heartbeatInterval = setInterval(() => {
+      if (this.isConnected && this.client) {
+        const now = Date.now();
+        if (now - this.lastHeartbeat > this.heartbeatTimeout) {
+          console.warn('Heartbeat timeout, attempting to reconnect');
+          this.isConnected = false;
+          this.attemptReconnect();
+        } else {
+          // Send heartbeat
+          try {
+            this.client.publish({
+              destination: '/app/heartbeat',
+              body: JSON.stringify({ timestamp: now })
+            });
+          } catch (error) {
+            console.error('Failed to send heartbeat:', error);
+          }
+        }
+      }
+    }, 10000); // Send heartbeat every 10 seconds
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
   }
 
@@ -114,17 +152,34 @@ class WebSocketService {
       return;
     }
 
+    // Check if already subscribed to avoid duplicates
+    const handlerKey = `channel-${channelId}`;
+    if (this.messageHandlers.has(handlerKey)) {
+      console.log(`Already subscribed to channel ${channelId}, skipping duplicate subscription`);
+      return;
+    }
+
     const subscription = this.client.subscribe(`/topic/channel/${channelId}`, (message: IMessage) => {
       try {
+        this.lastHeartbeat = Date.now(); // Update heartbeat on message received
         const data = JSON.parse(message.body);
         console.log('Received channel message:', data);
         handler(data);
       } catch (error) {
         console.error('Error parsing channel message:', error);
+        // Try to handle malformed messages gracefully
+        handler({
+          type: 'ERROR',
+          error: 'Failed to parse message',
+          rawData: message.body
+        });
       }
+    }, {
+      ack: 'client' // Enable acknowledgment
     });
 
-    this.messageHandlers.set(`channel-${channelId}`, handler);
+    this.messageHandlers.set(handlerKey, handler);
+    console.log(`Subscribed to channel ${channelId}`);
     return subscription;
   }
 
@@ -134,17 +189,34 @@ class WebSocketService {
       return;
     }
 
+    // Check if already subscribed to avoid duplicates
+    const handlerKey = `user-${userId}`;
+    if (this.messageHandlers.has(handlerKey)) {
+      console.log(`Already subscribed to user ${userId}, skipping duplicate subscription`);
+      return;
+    }
+
     const subscription = this.client.subscribe(`/topic/user/${userId}`, (message: IMessage) => {
       try {
+        this.lastHeartbeat = Date.now(); // Update heartbeat on message received
         const data = JSON.parse(message.body);
         console.log('Received user message:', data);
         handler(data);
       } catch (error) {
         console.error('Error parsing user message:', error);
+        // Try to handle malformed messages gracefully
+        handler({
+          type: 'ERROR',
+          error: 'Failed to parse message',
+          rawData: message.body
+        });
       }
+    }, {
+      ack: 'client' // Enable acknowledgment
     });
 
-    this.messageHandlers.set(`user-${userId}`, handler);
+    this.messageHandlers.set(handlerKey, handler);
+    console.log(`Subscribed to user ${userId}`);
     return subscription;
   }
 

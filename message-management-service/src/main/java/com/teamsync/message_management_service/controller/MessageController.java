@@ -5,6 +5,10 @@ import com.teamsync.message_management_service.dto.FileCreationDTO;
 import com.teamsync.message_management_service.dto.MessageCreationDTO;
 import com.teamsync.message_management_service.dto.MessageResponseDTO;
 import com.teamsync.message_management_service.dto.MessageUpdateDTO;
+import com.teamsync.message_management_service.dto.MessageWithUserInfoDTO;
+import com.teamsync.message_management_service.dto.UserResponseDTO;
+import com.teamsync.message_management_service.mapper.MessageWithUserInfoMapper;
+import com.teamsync.message_management_service.client.UserClient;
 
 import com.teamsync.message_management_service.response.SuccessResponse;
 import com.teamsync.message_management_service.service.MessageService;
@@ -18,16 +22,21 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping({"/channels", "/api/channels"})
 @RequiredArgsConstructor
+@Slf4j
 public class MessageController {
 
         private final MessageService messageService;
         private final WebSocketService webSocketService;
+        private final MessageWithUserInfoMapper messageWithUserInfoMapper;
+        private final UserClient userClient;
 
         @GetMapping("/{channelId}/messages")
         public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> getChannelMessages(
@@ -48,14 +57,44 @@ public class MessageController {
                         @Valid @RequestBody MessageCreationDTO requestDto) {
                 MessageResponseDTO responseDto = messageService.createChannelMessage(channelId, requestDto);
                 
-                // Broadcast the new message via WebSocket
-                if (requestDto.recipientId() != null) {
-                        // Direct message
-                        webSocketService.broadcastDirectMessage(requestDto.recipientId(), responseDto);
-                } else {
-                        // Channel message
-                        webSocketService.broadcastNewMessage(channelId, responseDto);
-                }
+                // Broadcast WebSocket message asynchronously to avoid blocking the response
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        // Get sender information for WebSocket broadcast
+                        UserResponseDTO sender = userClient.findById(responseDto.senderId()).getData();
+                        
+                        // Broadcast the new message via WebSocket with user info
+                        if (requestDto.recipientId() != null) {
+                                // Direct message
+                                if (sender != null) {
+                                        MessageWithUserInfoDTO messageWithUserInfo = messageWithUserInfoMapper.toMessageWithUserInfo(responseDto, sender);
+                                        webSocketService.broadcastDirectMessageWithUserInfo(requestDto.recipientId(), messageWithUserInfo);
+                                } else {
+                                        webSocketService.broadcastDirectMessage(requestDto.recipientId(), responseDto);
+                                }
+                        } else {
+                                // Channel message
+                                if (sender != null) {
+                                        MessageWithUserInfoDTO messageWithUserInfo = messageWithUserInfoMapper.toMessageWithUserInfo(responseDto, sender);
+                                        webSocketService.broadcastNewMessageWithUserInfo(channelId, messageWithUserInfo);
+                                } else {
+                                        webSocketService.broadcastNewMessage(channelId, responseDto);
+                                }
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to broadcast WebSocket message for channel {}: {}", channelId, e.getMessage(), e);
+                        // Fallback: try to broadcast without user info
+                        try {
+                            if (requestDto.recipientId() != null) {
+                                webSocketService.broadcastDirectMessage(requestDto.recipientId(), responseDto);
+                            } else {
+                                webSocketService.broadcastNewMessage(channelId, responseDto);
+                            }
+                        } catch (Exception fallbackError) {
+                            log.error("Fallback WebSocket broadcast also failed for channel {}: {}", channelId, fallbackError.getMessage());
+                        }
+                    }
+                });
                 
                 SuccessResponse<MessageResponseDTO> resp = SuccessResponse.<MessageResponseDTO>builder()
                                 .code(HttpStatus.CREATED.value())
@@ -86,14 +125,27 @@ public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> createMessageWi
 
     List<MessageResponseDTO> responseDtos = messageService.createMessageWithFiles(requestDto);
 
-    // Broadcast the new messages via WebSocket
+    // Get sender information for WebSocket broadcast
+    UserResponseDTO sender = userClient.findById(responseDtos.get(0).senderId()).getData();
+    
+    // Broadcast the new messages via WebSocket with user info
     for (MessageResponseDTO responseDto : responseDtos) {
         if (requestDto.recipientId() != null) {
             // Direct message
-            webSocketService.broadcastDirectMessage(requestDto.recipientId(), responseDto);
+            if (sender != null) {
+                MessageWithUserInfoDTO messageWithUserInfo = messageWithUserInfoMapper.toMessageWithUserInfo(responseDto, sender);
+                webSocketService.broadcastDirectMessageWithUserInfo(requestDto.recipientId(), messageWithUserInfo);
+            } else {
+                webSocketService.broadcastDirectMessage(requestDto.recipientId(), responseDto);
+            }
         } else if (channelId != null) {
             // Channel message
-            webSocketService.broadcastNewMessage(channelId, responseDto);
+            if (sender != null) {
+                MessageWithUserInfoDTO messageWithUserInfo = messageWithUserInfoMapper.toMessageWithUserInfo(responseDto, sender);
+                webSocketService.broadcastNewMessageWithUserInfo(channelId, messageWithUserInfo);
+            } else {
+                webSocketService.broadcastNewMessage(channelId, responseDto);
+            }
         }
     }
 
@@ -124,20 +176,31 @@ public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> createMessageWi
                         @PathVariable Long channelId,
                         @PathVariable Long messageId,
                         @Valid @RequestBody MessageUpdateDTO requestDto) {
-                // Authentication authentication =
-                // SecurityContextHolder.getContext().getAuthentication();
-                // String userEmail = authentication.getName();
-                String userEmail = "a@b.com";
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                String userEmail = authentication.getName();
                 MessageResponseDTO responseDto = messageService.updateChannelMessage(channelId, messageId, requestDto,
                                 userEmail);
                 
-                // Broadcast the message update via WebSocket
+                // Get sender information for WebSocket broadcast
+                UserResponseDTO sender = userClient.findById(responseDto.senderId()).getData();
+                
+                // Broadcast the message update via WebSocket with user info
                 if (requestDto.recipientId() != null) {
                         // Direct message
-                        webSocketService.broadcastDirectMessageUpdate(requestDto.recipientId(), responseDto);
+                        if (sender != null) {
+                                MessageWithUserInfoDTO messageWithUserInfo = messageWithUserInfoMapper.toMessageWithUserInfo(responseDto, sender);
+                                webSocketService.broadcastDirectMessageUpdateWithUserInfo(requestDto.recipientId(), messageWithUserInfo);
+                        } else {
+                                webSocketService.broadcastDirectMessageUpdate(requestDto.recipientId(), responseDto);
+                        }
                 } else {
                         // Channel message
-                        webSocketService.broadcastMessageUpdate(channelId, responseDto);
+                        if (sender != null) {
+                                MessageWithUserInfoDTO messageWithUserInfo = messageWithUserInfoMapper.toMessageWithUserInfo(responseDto, sender);
+                                webSocketService.broadcastMessageUpdateWithUserInfo(channelId, messageWithUserInfo);
+                        } else {
+                                webSocketService.broadcastMessageUpdate(channelId, responseDto);
+                        }
                 }
                 
                 SuccessResponse<MessageResponseDTO> resp = SuccessResponse.<MessageResponseDTO>builder()

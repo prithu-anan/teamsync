@@ -26,4 +26,5 @@ INSERT INTO users (
     ('jakaria', 'jakaria@gmail.com', '$2a$10$brqeIZsSSGDC3VlrftDHG.9RQima6T2IrhiQK.Gpw42H6ZUitbq0W', NULL, NULL, NULL, NULL, NULL, NULL),
     ('ehsan', 'ehsan@gmail.com', '$2a$10$g5AJTnbPo.bCrVExxW5fbOZ5epOoI/5rI7r8Epm1hbUKqemWQ4zce', NULL, NULL, NULL, NULL, NULL, NULL),
     ('munzeer', 'munzeer@gmail.com', '$2a$10$9Pfy.vpfBQR1hHUSS4gZkeP/.YbdQTF8kY8/B35fh0zBaUnhDDcBW', NULL, NULL, NULL, NULL, NULL, NULL),
-    ('turad', 'turad@gmail.com', '$2a$10$.SwvK1kPkCgmZvmHrG0ROuh2KykZqqYXRa6Z1FQIHfrBsBAk12Wtq', NULL, NULL, NULL, NULL, NULL, NULL);
+    ('turad', 'turad@gmail.com', '$2a$10$.SwvK1kPkCgmZvmHrG0ROuh2KykZqqYXRa6Z1FQIHfrBsBAk12Wtq', NULL, NULL, NULL, NULL, NULL, NULL),
+    ('test user', 'a@b.com', '$2a$10$rXwg//1CPd12gxGPFpC/yu3QCwY44SWplkvhKUDYQFC6BSO8p0haK', NULL, NULL, 'Software Engineer', '1990-01-01', '2020-01-01', false);

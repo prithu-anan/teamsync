@@ -45,6 +45,11 @@ const MoveTaskDialog = ({ open, onOpenChange, taskId, currentStatus, assignedBy,
   const canMoveToCompleted = () => {
     const userId = typeof user?.id === 'string' ? parseInt(user.id) : user?.id;
     console.log('Move permission check:', { userId, assignedBy, user: user?.id });
+    // If assignedBy is null/undefined, allow the move (fallback for existing tasks)
+    if (assignedBy === null || assignedBy === undefined) {
+      console.log('assignedBy is null/undefined, allowing move as fallback');
+      return true;
+    }
     return userId === assignedBy;
   };
 

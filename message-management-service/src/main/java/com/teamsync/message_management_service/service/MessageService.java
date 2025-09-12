@@ -73,11 +73,9 @@ public class MessageService {
         Channels channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new NotFoundException("Channel with ID " + channelId + " not found"));
         // *************************************************************
-        // Authentication authentication =
-        // SecurityContextHolder.getContext().getAuthentication();
-        // String email = authentication.getName();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
         // ************************************************************
-        String email = "a@b.com";
 UserResponseDTO sender = userClient.findByEmail(email).getData(); // ✅ unwrap
         if (sender == null) {
             throw new NotFoundException("User not found with email " + email);

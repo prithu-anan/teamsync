@@ -334,11 +334,7 @@ const MessageThread = ({ messages, channel, openThread, setOpenThread, pinnedMes
             )}
             <Textarea
               value={newMessage}
-              onChange={(e) => {
-                console.log("Textarea onChange - new value:", e.target.value);
-                console.log("Textarea onChange - value length:", e.target.value.length);
-                setNewMessage(e.target.value);
-              }}
+              onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Type a message..."
               className="min-h-[60px] max-h-[120px] resize-none"

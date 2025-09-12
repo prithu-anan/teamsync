@@ -49,7 +49,8 @@ public class FeedPostController {
                         @Valid @RequestPart("feedPost") FeedPostCreateRequest request,
                         @RequestPart(value = "files", required = false) List<MultipartFile> files) {
 
-                FeedPostResponseDTO createdPost = feedPostsService.createFeedPost(request, files);
+                String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                FeedPostResponseDTO createdPost = feedPostsService.createFeedPost(request, files, userEmail);
 
                 SuccessResponse<FeedPostResponseDTO> resp = SuccessResponse.<FeedPostResponseDTO>builder()
                                 .code(HttpStatus.CREATED.value())

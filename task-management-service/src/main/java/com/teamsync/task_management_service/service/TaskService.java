@@ -93,6 +93,14 @@ public class TaskService {
         ProjectDTO project = projectResponse.getData();
         task.setProject(project.getId());
 
+        // Always set the assignedBy to the current user from security context
+        SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
+        if (currentUserResponse == null || currentUserResponse.getData() == null) {
+            throw new NotFoundException("Current user not found with email: " + userEmail);
+        }
+        UserResponseDTO currentUser = currentUserResponse.getData();
+        task.setAssignedBy(currentUser.getId());
+
         // Set assigned to user if provided
         if (createDto.getAssignedTo() != null) {
             SuccessResponse<UserResponseDTO> assignedUserResponse = userClient.findById(createDto.getAssignedTo());
@@ -101,13 +109,6 @@ public class TaskService {
             }
             UserResponseDTO assignedUser = assignedUserResponse.getData();
             task.setAssignedTo(assignedUser.getId());
-            // Set the assignedBy to the current user from security context
-            SuccessResponse<UserResponseDTO> currentUserResponse = userClient.findByEmail(userEmail);
-            if (currentUserResponse == null || currentUserResponse.getData() == null) {
-                throw new NotFoundException("Current user not found with email: " + userEmail);
-            }
-            UserResponseDTO currentUser = currentUserResponse.getData();
-            task.setAssignedBy(currentUser.getId());
         }
 
         Tasks parentTask = null;
@@ -504,7 +505,7 @@ public class TaskService {
     }
 
     /**
-     * Check if the current user can manage the task (admin or owner of the project)
+     * Check if the current user can manage the task (admin, owner of the project, or task assigner)
      * This replicates the authorization logic from the monolithic
      * ProjectAuthorizationService
      */
@@ -522,6 +523,11 @@ public class TaskService {
                 return false;
             }
             UserResponseDTO currentUser = currentUserResponse.getData();
+
+            // Check if user is the task assigner (assignedBy)
+            if (task.getAssignedBy() != null && task.getAssignedBy().equals(currentUser.getId())) {
+                return true;
+            }
 
             // Get project details
             SuccessResponse<ProjectDTO> projectResponse = projectClient.findById(projectId);

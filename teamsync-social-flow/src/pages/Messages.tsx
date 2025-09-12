@@ -169,16 +169,20 @@ const Messages = () => {
     }
 
     if (data.id || data.messageId) {
+      // Use user info from WebSocket message if available, otherwise fall back to users state lookup
+      const senderId = data.sender_id?.toString() || '';
+      const foundUser = users.find(u => u.id?.toString() === senderId);
+      
       const message: Message = {
         id: data.id?.toString() || data.messageId?.toString() || '',
-        sender_id: data.sender_id?.toString() || '',
+        sender_id: senderId,
         channel_id: data.channel_id?.toString() || null,
         recipient_id: data.recipient_id?.toString() || null,
         content: data.content || '',
         timestamp: data.timestamp || new Date().toISOString(),
         thread_parent_id: data.thread_parent_id?.toString() || null,
-        userName: data.userName || 'Unknown User',
-        userAvatar: data.userAvatar || '/placeholder.svg',
+        userName: data.sender_name || foundUser?.name || 'Unknown User',
+        userAvatar: data.sender_avatar || foundUser?.avatar || '/placeholder.svg',
         file_url: data.file_url || null,
         file_type: data.file_type || null,
         fileUrl: data.file_url || data.fileUrl || null,
@@ -193,7 +197,7 @@ const Messages = () => {
         handleWebSocketMessage(message);
       }
     }
-  }, [handleWebSocketMessage, handleWebSocketMessageUpdate, handleWebSocketMessageDeletion]);
+  }, [handleWebSocketMessage, handleWebSocketMessageUpdate, handleWebSocketMessageDeletion, users]);
 
   // Subscribe to WebSocket messages when selectedChannel changes
   useEffect(() => {

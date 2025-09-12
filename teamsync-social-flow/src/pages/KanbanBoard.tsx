@@ -353,7 +353,9 @@ const KanbanBoard = () => {
     // Check if user is the assigner
     const userId = typeof user?.id === 'string' ? parseInt(user.id) : user?.id;
     console.log('Edit permission check:', { userId, assignedBy, user: user?.id });
-    if (userId !== assignedBy) {
+    
+    // If assignedBy is null/undefined, allow the edit (fallback for existing tasks)
+    if (assignedBy !== null && assignedBy !== undefined && userId !== assignedBy) {
       toast({
         title: "Permission Denied",
         description: "Only the task assigner can edit this task.",
