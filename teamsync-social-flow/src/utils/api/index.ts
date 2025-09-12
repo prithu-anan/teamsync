@@ -8,6 +8,7 @@ export * from './feed-api';
 export * from './events-api';
 export * from './appreciations-api';
 export * from './poll-votes-api';
+export * from './notifications-api';
 
 // Export configuration
 export * from './api-config'; 

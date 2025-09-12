@@ -64,4 +64,11 @@ public class Routes {
                 .build();
     }
     
+    @Bean
+    public RouterFunction<ServerResponse> notificationService() {
+        return GatewayRouterFunctions.route("notification_service")
+                .route(RequestPredicates.path("/notifications/**"), HandlerFunctions.http("http://notification-service:8092"))
+                .build();
+    }
+    
 }

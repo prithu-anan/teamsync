@@ -15,11 +15,13 @@ public interface NotificationRepository extends MongoRepository<Notification, St
     
     List<Notification> findByUserIdAndIsReadFalseOrderByCreatedAtDesc(Long userId);
     
-    @Query("{'userId': ?0, 'isRead': false}")
+    @Query(value = "{'userId': ?0, 'isRead': false}", count = true)
     long countUnreadByUserId(Long userId);
     
     @Query("{'userId': ?0, 'createdAt': {$gte: ?1}}")
     List<Notification> findByUserIdAndCreatedAtAfter(Long userId, LocalDateTime after);
     
     void deleteByUserIdAndCreatedAtBefore(Long userId, LocalDateTime before);
+    
+    void deleteByUserId(Long userId);
 }
