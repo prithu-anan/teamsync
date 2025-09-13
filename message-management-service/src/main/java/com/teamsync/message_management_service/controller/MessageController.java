@@ -51,6 +51,19 @@ public class MessageController {
                 return ResponseEntity.ok(resp);
         }
 
+        @GetMapping("/{channelId}/messages/pinned")
+        public ResponseEntity<SuccessResponse<List<MessageResponseDTO>>> getPinnedChannelMessages(
+                        @PathVariable Long channelId) {
+                List<MessageResponseDTO> pinnedMessages = messageService.getPinnedChannelMessages(channelId);
+                SuccessResponse<List<MessageResponseDTO>> resp = SuccessResponse.<List<MessageResponseDTO>>builder()
+                                .code(HttpStatus.OK.value())
+                                .status(HttpStatus.OK)
+                                .message("Pinned messages fetched successfully")
+                                .data(pinnedMessages)
+                                .build();
+                return ResponseEntity.ok(resp);
+        }
+
         @PostMapping("/{channelId}/messages")
         public ResponseEntity<SuccessResponse<MessageResponseDTO>> createChannelMessage(
                         @PathVariable Long channelId,

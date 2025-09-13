@@ -141,6 +141,26 @@ export const getMessages = async (channelId) => {
     }
 }
 
+export const getPinnedMessages = async (channelId) => {
+    const token = localStorage.getItem("teamsync_jwt");
+
+    try {
+        const res = await axios.get(`${API_BASE_URL}/channels/${channelId}/messages/pinned`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        if (res.status === 200) {
+            return res.data;
+        }
+    } catch (err) {
+        if (err.response) {
+            return { error: err.response.data || "Failed to fetch pinned messages" };
+        }
+    }
+}
+
 export const getMessageById = async (channelId, messageId) => {
     const token = localStorage.getItem("teamsync_jwt");
 

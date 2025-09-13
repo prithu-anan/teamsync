@@ -219,7 +219,7 @@ const MessageThread = ({ messages, channel, openThread, setOpenThread, pinnedMes
         <PinnedMessagesModal
           pinnedMessages={pinnedMessages}
           onClose={() => setShowPinnedModal(false)}
-          onUnpinMessage={onUnpinMessage}
+          onUnpinMessage={(msg) => sendMessage({ id: msg.id, updateType: 'pin' })}
         />
       )}
       {/* Pinned Messages */}
@@ -276,8 +276,8 @@ const MessageThread = ({ messages, channel, openThread, setOpenThread, pinnedMes
                 <MessageItem
                   message={message}
                   onReply={setReplyingTo}
-                  onPin={() => (pinnedMessages.some(m => m.id === message.id) ? onUnpinMessage(message) : onPinMessage(message))}
-                  isPinned={pinnedMessages.some(m => m.id === message.id)}
+                  onPin={() => sendMessage({ id: message.id, updateType: 'pin' })}
+                  isPinned={message.is_pinned || false}
                   onOpenThread={() => setOpenThread({message, channel})}
                   onReact={handleReact}
                   onEdit={handleEditMessage}

@@ -13,4 +13,6 @@ public interface MessageRepository extends JpaRepository<Messages, Long> {
     List<Messages> findByChannelIdOrderByTimestampAsc(Long channelId);
 
     Optional<Messages> findByIdAndChannelId(Long id, Long channelId);
+
+    List<Messages> findByChannelIdAndIsPinnedTrueOrderByTimestampDesc(Long channelId);
 }

@@ -29,7 +29,7 @@ const PinnedMessagesModal = ({ pinnedMessages, onClose, onUnpinMessage }: Pinned
         <ScrollArea className="flex-1 min-h-0">
           <div className="p-4 space-y-4">
             {pinnedMessages.map(msg => (
-              <MessageItem key={msg.id} message={msg} onReply={() => {}} onPin={() => onUnpinMessage(msg)} isPinned={true} />
+              <MessageItem key={msg.id} message={msg} onReply={() => {}} onPin={() => onUnpinMessage(msg)} isPinned={true} onEdit={() => {}} onDelete={() => {}} />
             ))}
             <div ref={scrollRef} />
           </div>

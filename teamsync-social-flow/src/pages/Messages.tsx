@@ -21,6 +21,7 @@ import {
   deleteMessage,
   sendFileMessage
 } from "@/utils/api-helpers";
+import { getPinnedMessages } from "@/utils/api/channels-api";
 import { toast } from "@/components/ui/use-toast";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import { useCallInvitations } from "@/hooks/useCallInvitations";
@@ -119,7 +120,7 @@ const MessagesContent = () => {
   const navigate = useNavigate();
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("dms");
+  const [activeTab, setActiveTab] = useState("channels");
   const [openThread, setOpenThread] = useState<{message: Message, channel: Channel} | null>(null);
   const [pinnedMessages, setPinnedMessages] = useState<{[channelId: string]: Message[]}>({});
   const [showNewConversationDialog, setShowNewConversationDialog] = useState(false);
@@ -403,6 +404,62 @@ const MessagesContent = () => {
     }
   };
 
+  // Load pinned messages for a channel
+  const loadPinnedMessages = async (channelId: string) => {
+    try {
+      const response = await getPinnedMessages(channelId);
+      
+      if (response.error) {
+        console.error("Failed to load pinned messages:", response.error);
+        return;
+      }
+
+      let pinnedData = response;
+      if (response && typeof response === 'object' && !Array.isArray(response)) {
+        if (response.data && Array.isArray(response.data)) {
+          pinnedData = response.data;
+        } else {
+          console.log("Pinned messages API response structure:", response);
+          return;
+        }
+      }
+
+      // Transform pinned messages to include user information
+      const transformedPinnedMessages = (pinnedData || []).map((msg: any) => ({
+        id: msg.id?.toString() || `msg-${Date.now()}`,
+        sender_id: msg.sender_id?.toString() || msg.sender_id || 'unknown',
+        channel_id: msg.channel_id?.toString() || channelId,
+        recipient_id: msg.recipient_id?.toString() || null,
+        content: msg.content || '',
+        timestamp: msg.timestamp || new Date().toISOString(),
+        thread_parent_id: msg.thread_parent_id?.toString() || null,
+        userName: users.find(u => u.id?.toString() === msg.sender_id?.toString())?.name || 
+                users.find(u => u.id?.toString() === msg.sender_id)?.name || 
+                'Unknown User',
+        userAvatar: users.find(u => u.id?.toString() === msg.sender_id?.toString())?.avatar || 
+                   users.find(u => u.id?.toString() === msg.sender_id)?.avatar || 
+                   '/placeholder.svg',
+        // File-related fields from API
+        file_url: msg.file_url || null,
+        file_type: msg.file_type || null,
+        // Legacy fields for backward compatibility
+        fileUrl: msg.file_url || msg.fileUrl || null,
+        fileName: msg.file_name || msg.fileName || 'file',
+        imageUrl: msg.file_type?.startsWith('image/') ? msg.file_url : null,
+        reactions: [], // API doesn't provide reactions yet
+        is_pinned: msg.is_pinned || false,
+      }));
+
+      // Update pinned messages state
+      setPinnedMessages(prev => ({
+        ...prev,
+        [channelId]: transformedPinnedMessages || []
+      }));
+    } catch (error) {
+      console.error("Error loading pinned messages:", error);
+    }
+  };
+
   // Fetch messages for a channel
   const fetchMessages = async (channel: Channel) => {
     setMessagesLoading(true);
@@ -486,6 +543,7 @@ const MessagesContent = () => {
         fileName: msg.file_name || msg.fileName || 'file',
         imageUrl: msg.file_type?.startsWith('image/') ? msg.file_url : null,
         reactions: [], // API doesn't provide reactions yet
+        is_pinned: msg.is_pinned || false,
       }));
 
       // If no messages returned, use fallback data
@@ -516,6 +574,13 @@ const MessagesContent = () => {
   useEffect(() => {
     fetchChannels();
   }, []);
+
+  // Load pinned messages when users are available and channel is selected
+  useEffect(() => {
+    if (selectedChannel && users.length > 0 && selectedChannel.channel_id) {
+      loadPinnedMessages(selectedChannel.channel_id);
+    }
+  }, [selectedChannel, users]);
 
   // Filter channels for sidebar based on membership, activeTab, and search query
   const filteredChannels = allChannels.filter(c =>
@@ -581,11 +646,12 @@ const MessagesContent = () => {
         return;
       }
       
-      // Update payload to match new API: only channel_id, recipient_id, content
+      // Update payload to match new API: only channel_id, recipient_id, content, is_pinned
       const updatePayload = {
         channel_id: selectedChannel?.channel_id ? parseInt(selectedChannel.channel_id, 10) : null,
         recipient_id: 1, // Always set recipient_id to 1 for message edits
         content: msg.content,
+        is_pinned: msg.is_pinned !== undefined ? msg.is_pinned : messageToEdit.is_pinned,
       };
 
       try {
@@ -602,6 +668,49 @@ const MessagesContent = () => {
         }
       } catch (error) {
         toast({ title: "Error", description: "An error occurred while editing.", variant: "destructive" });
+      }
+      return;
+    }
+
+    if (msg.updateType === 'pin' && msg.id) {
+      const messageToPin = allMessages.find(m => m.id === msg.id);
+      if (!messageToPin) {
+        toast({ title: "Error", description: "Could not find the message to pin.", variant: "destructive" });
+        return;
+      }
+      
+      const newPinnedState = !messageToPin.is_pinned;
+      
+      // Update payload to toggle pin status
+      const updatePayload = {
+        channel_id: selectedChannel?.channel_id ? parseInt(selectedChannel.channel_id, 10) : null,
+        recipient_id: 1, // Always set recipient_id to 1 for message edits
+        content: messageToPin.content,
+        is_pinned: newPinnedState,
+      };
+
+      try {
+        const response = await editMessage(selectedChannel.channel_id, extractNumericId(msg.id), updatePayload);
+        if (response && response.code === 200 && response.status === "OK") {
+          // Optimistically update the UI with the new pin status
+          const updatedMessageInState = { ...messageToPin, is_pinned: newPinnedState };
+          setAllMessages(prev => prev.map(m => 
+            m.id === msg.id ? updatedMessageInState : m
+          ));
+
+          // Refresh pinned messages
+          await loadPinnedMessages(selectedChannel.channel_id);
+          
+          toast({ 
+            title: "Success", 
+            description: newPinnedState ? "Message pinned" : "Message unpinned", 
+            variant: "default" 
+          });
+        } else {
+          toast({ title: "Error", description: response?.message || response?.error || "Failed to update message", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "An error occurred while updating pin status.", variant: "destructive" });
       }
       return;
     }
@@ -989,9 +1098,9 @@ const MessagesContent = () => {
                     channel={selectedChannel} 
                     openThread={openThread}
                     setOpenThread={setOpenThread}
-                    pinnedMessages={pinnedMessages[selectedChannel.id] || []}
-                    onPinMessage={(msg) => setPinnedMessages(p => ({...p, [selectedChannel.id]: [...(p[selectedChannel.id]||[]), msg]}))}
-                    onUnpinMessage={(msg) => setPinnedMessages(p => ({...p, [selectedChannel.id]: (p[selectedChannel.id]||[]).filter(m => m.id !== msg.id)}))}
+                    pinnedMessages={pinnedMessages[selectedChannel.channel_id || selectedChannel.id] || []}
+                    onPinMessage={() => {}} // No longer needed - handled by API
+                    onUnpinMessage={() => {}} // No longer needed - handled by API
                     sendMessage={sendMessageHandler}
                   />
                 )}

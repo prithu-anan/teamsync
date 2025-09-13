@@ -37,6 +37,7 @@ export interface Message {
   files?: File[];
   updateType?: 'reaction' | 'new' | 'edit' | 'delete';
   isOptimistic?: boolean;
+  is_pinned?: boolean;
 }
 
 export interface User {

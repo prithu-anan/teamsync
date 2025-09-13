@@ -67,6 +67,18 @@ public class MessageService {
                 .collect(Collectors.toList());
     }
 
+    public List<MessageResponseDTO> getPinnedChannelMessages(Long channelId) {
+        // Validate channel exists
+        if (!channelRepository.existsById(channelId)) {
+            throw new NotFoundException("Channel with ID " + channelId + " not found");
+        }
+
+        List<Messages> pinnedMessages = messageRepository.findByChannelIdAndIsPinnedTrueOrderByTimestampDesc(channelId);
+        return pinnedMessages.stream()
+                .map(messageMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public MessageResponseDTO createChannelMessage(Long channelId, MessageCreationDTO requestDto) {
         // Validate channel exists
