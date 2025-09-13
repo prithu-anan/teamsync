@@ -237,6 +237,46 @@ class WebSocketService {
   public getConnectionStatus(): boolean {
     return this.isConnected;
   }
+
+  public sendMessage(message: WebSocketMessage) {
+    if (!this.client || !this.isConnected) {
+      console.warn('WebSocket not connected, cannot send message');
+      return;
+    }
+
+    try {
+      this.client.publish({
+        destination: '/app/message',
+        body: JSON.stringify(message)
+      });
+      console.log('Message sent via WebSocket:', message);
+    } catch (error) {
+      console.error('Failed to send WebSocket message:', error);
+    }
+  }
+
+  public subscribe(messageType: string, handler: (message: WebSocketMessage) => void) {
+    if (!this.client || !this.isConnected) {
+      console.warn('WebSocket not connected, cannot subscribe to message type');
+      return;
+    }
+
+    // Subscribe to messages with specific type
+    const handlerKey = `type-${messageType}`;
+    if (this.messageHandlers.has(handlerKey)) {
+      console.log(`Already subscribed to message type ${messageType}`);
+      return;
+    }
+
+    // For now, we'll use a generic message subscription
+    // In a real implementation, you might want to set up specific subscriptions
+    this.messageHandlers.set(handlerKey, handler);
+    console.log(`Subscribed to message type ${messageType}`);
+    
+    return () => {
+      this.messageHandlers.delete(handlerKey);
+    };
+  }
 }
 
 // Create a singleton instance

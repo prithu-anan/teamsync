@@ -23,6 +23,13 @@ import {
 } from "@/utils/api-helpers";
 import { toast } from "@/components/ui/use-toast";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
+import { useCallInvitations } from "@/hooks/useCallInvitations";
+import { CallProvider, useCallContext } from "@/contexts/CallContext";
+import VideoCallModal from "@/components/video-call/VideoCallModal";
+import IncomingCallNotification from "@/components/video-call/IncomingCallNotification";
+import CallRejoinNotification from "@/components/video-call/CallRejoinNotification";
+import CallButton from "@/components/video-call/CallButton";
+import { useChannelParticipants } from "@/hooks/useChannelParticipants";
 import type { Channel, Message, User } from "@/types/messages";
 
 const ChannelInfoSidebar = ({ channel, onMemberClick }: { channel: Channel; onMemberClick?: (user: User) => void }) => {
@@ -107,7 +114,7 @@ const ChannelInfoSidebar = ({ channel, onMemberClick }: { channel: Channel; onMe
   );
 };
 
-const Messages = () => {
+const MessagesContent = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
@@ -133,6 +140,44 @@ const Messages = () => {
     unsubscribeFromChannel, 
     unsubscribeFromUser 
   } = useWebSocketContext();
+
+  // Handle call invitations
+  const { incomingCall, handleIncomingCallClose } = useCallInvitations({
+    currentUser: user,
+    channels: allChannels
+  });
+
+  // Get call context
+  const { currentCall, activeCalls, startCall, joinCall, endCall } = useCallContext();
+
+  // Get participants for the current channel
+  const { 
+    participants, 
+    otherParticipants, 
+    canStartCall, 
+    isGroupCall, 
+    loading: participantsLoading 
+  } = useChannelParticipants({
+    channel: selectedChannel,
+    currentUser: user
+  });
+
+  // Handle call started
+  const handleCallStarted = (roomID: string) => {
+    if (!user) return;
+
+    const activeCall = {
+      roomID,
+      channel: selectedChannel,
+      caller: user,
+      participants,
+      callType: 'video' as const, // Default to video, could be made configurable
+      startTime: new Date(),
+      isActive: true
+    };
+
+    startCall(activeCall);
+  };
 
   // WebSocket handlers - using useCallback to prevent unnecessary re-renders
   const handleWebSocketMessage = useCallback((message: Message) => {
@@ -904,6 +949,18 @@ const Messages = () => {
                   <Button variant="ghost" size="icon">
                     <Users className="h-4 w-4" />
                   </Button>
+                  {selectedChannel && (
+                    <CallButton
+                      channel={selectedChannel}
+                      currentUser={user}
+                      participants={participants}
+                      otherParticipants={otherParticipants}
+                      canStartCall={canStartCall}
+                      isGroupCall={isGroupCall}
+                      loading={participantsLoading}
+                      onCallStarted={handleCallStarted}
+                    />
+                  )}
                   <Button variant="ghost" size="icon">
                     <Settings className="h-4 w-4" />
                   </Button>
@@ -969,7 +1026,63 @@ const Messages = () => {
         onOpenChange={setShowNewConversationDialog}
         onConversationCreated={handleConversationCreated}
       />
+      
+      {/* Incoming Call Notification */}
+      {incomingCall && user && (
+        <IncomingCallNotification
+          invitation={incomingCall}
+          onAccept={() => {
+            // Convert invitation to active call format
+            const activeCall = {
+              roomID: incomingCall.roomID,
+              channel: incomingCall.channel,
+              caller: incomingCall.caller,
+              participants: [], // Will be populated when joining
+              callType: incomingCall.callType,
+              startTime: new Date(),
+              isActive: true
+            };
+            joinCall(activeCall);
+            handleIncomingCallClose();
+          }}
+          onDecline={() => {
+            handleIncomingCallClose();
+          }}
+        />
+      )}
+
+      {/* Active Call Modal */}
+      {currentCall && user && (
+        <VideoCallModal
+          isOpen={true}
+          onClose={() => {
+            // End the call when closing the modal
+            endCall(currentCall.roomID);
+          }}
+          channel={currentCall.channel}
+          currentUser={user}
+          participants={currentCall.participants}
+        />
+      )}
+
+      {/* Call Rejoin Notifications for Active Calls */}
+      {!currentCall && activeCalls.size > 0 && Array.from(activeCalls.values()).map(call => (
+        <CallRejoinNotification
+          key={call.roomID}
+          activeCall={call}
+          onRejoin={() => joinCall(call)}
+          onDismiss={() => endCall(call.roomID)}
+        />
+      ))}
     </div>
+  );
+};
+
+const Messages = () => {
+  return (
+    <CallProvider>
+      <MessagesContent />
+    </CallProvider>
   );
 };
 

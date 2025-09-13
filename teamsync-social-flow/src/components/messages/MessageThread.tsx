@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import MessageItem from "./MessageItem";
 import EmojiPicker from "./EmojiPicker";
-import type { Message, Channel } from "@/types/messages";
+import VideoCallModal from "../video-call/VideoCallModal";
+import type { Message, Channel, User } from "@/types/messages";
 import ThreadModal from './ThreadModal';
 import PinnedMessagesModal from './PinnedMessagesModal';
 import { useAuth } from "@/contexts/AuthContext";
@@ -187,6 +188,7 @@ const MessageThread = ({ messages, channel, openThread, setOpenThread, pinnedMes
     });
     return map;
   }, [aiSuggestions]);
+
 
   // Filter messages based on channel type and IDs
   const channelMessages = messages.filter(msg => {
@@ -392,6 +394,7 @@ const MessageThread = ({ messages, channel, openThread, setOpenThread, pinnedMes
           onClose={() => setOpenThread(null)} 
         />
       )}
+      
     </div>
   );
 };
