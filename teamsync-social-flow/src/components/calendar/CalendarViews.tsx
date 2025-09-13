@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
-import { getEvents, createEvent } from "@/utils/api/events-api";
+import { getEvents, createEvent, getUpcomingEventsFromDate } from "@/utils/api/events-api";
 import { getUsers } from "@/utils/api/users-api";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,7 +17,8 @@ import { toast } from "@/components/ui/use-toast";
 interface Event {
   id: string;
   title: string;
-  time: string;
+  description?: string;
+  date: string;
   type: 'Outing' | 'Birthday' | 'Workiversary';
   participants?: string[];
 }
@@ -28,6 +29,7 @@ const CalendarViews = () => {
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', description: '', date: '', type: 'Outing', participants: [] });
   const [events, setEvents] = useState<Event[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
@@ -56,6 +58,32 @@ const CalendarViews = () => {
     };
     fetchEvents();
   }, []);
+
+  // Fetch upcoming events when selected date changes
+  useEffect(() => {
+    const fetchUpcomingEvents = async () => {
+      if (!selectedDate) return;
+      
+      try {
+        const dateStr = selectedDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        const response = await getUpcomingEventsFromDate(dateStr);
+        if (response && !response.error) {
+          const eventsData = response.data || response;
+          if (Array.isArray(eventsData)) {
+            setUpcomingEvents(eventsData);
+          } else {
+            setUpcomingEvents([]);
+          }
+        } else {
+          setUpcomingEvents([]);
+        }
+      } catch (err) {
+        setUpcomingEvents([]);
+      }
+    };
+    
+    fetchUpcomingEvents();
+  }, [selectedDate]);
 
   // Fetch users when add event form is shown
   useEffect(() => {
@@ -134,8 +162,17 @@ const CalendarViews = () => {
         title: "Event created successfully",
         description: `${newEvent.title} has been added to your calendar.`,
       });
-      // Optionally refetch events
-      // ...
+      // Refetch upcoming events for the selected date
+      if (selectedDate) {
+        const dateStr = selectedDate.toISOString().split('T')[0];
+        const response = await getUpcomingEventsFromDate(dateStr);
+        if (response && !response.error) {
+          const eventsData = response.data || response;
+          if (Array.isArray(eventsData)) {
+            setUpcomingEvents(eventsData);
+          }
+        }
+      }
     } else {
       toast({
         title: "Error creating event",
@@ -144,8 +181,6 @@ const CalendarViews = () => {
       });
     }
   };
-
-  const upcomingEvents = events.slice(0, 3); // Replace with real logic for next events
 
   return (
     <div className="space-y-6">
@@ -296,12 +331,33 @@ const CalendarViews = () => {
             <div className="flex-1 space-y-4">
               <h4 className="font-semibold mb-2">Upcoming Events</h4>
               <div className="space-y-2">
-                {upcomingEvents.map((event) => (
-                  <Card key={event.id} className="p-2 flex items-center justify-between backdrop-blur-sm bg-card/50 border-border/50">
-                    <span className="font-medium text-sm">{event.title}</span>
-                    <Badge variant={event.type === 'Birthday' ? 'destructive' : 'outline'}>{event.type}</Badge>
-                  </Card>
-                ))}
+                {upcomingEvents.length > 0 ? (
+                  upcomingEvents.slice(0, 4).map((event) => (
+                    <Card key={event.id} className="p-3 backdrop-blur-sm bg-card/50 border-border/50">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-sm">{event.title}</span>
+                        <Badge variant={event.type === 'Birthday' ? 'destructive' : 'outline'}>{event.type}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(event.date).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </div>
+                      {event.description && (
+                        <div className="text-xs text-muted-foreground mt-1 truncate">
+                          {event.description}
+                        </div>
+                      )}
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    No upcoming events for selected date
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -390,14 +446,29 @@ const CalendarViews = () => {
         <TabsContent value="schedule" className="space-y-4">
           <h3 className="text-lg font-semibold">Schedule View</h3>
           <div className="space-y-3">
-            {events.map((event) => (
+            {events
+              .filter((event) => {
+                const eventDate = new Date(event.date);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+                return eventDate >= today;
+              })
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+              .map((event) => (
               <Card key={event.id} className="p-4 backdrop-blur-sm bg-card/50 border-border/50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full bg-primary"></div>
                     <div>
                       <h4 className="font-medium">{event.title}</h4>
-                      <p className="text-sm text-muted-foreground">{event.time}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(event.date).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

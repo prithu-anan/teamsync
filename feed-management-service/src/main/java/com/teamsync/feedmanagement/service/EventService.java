@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -69,7 +70,7 @@ public class EventService {
     }
 
     public List<EventResponseDTO> getAllEvents() {
-        List<Events> events = eventRepository.findAll();
+        List<Events> events = eventRepository.findAllByOrderByDateDesc();
         return events.stream()
                 .map(eventMapper::toDto)
                 .collect(Collectors.toList());
@@ -122,5 +123,31 @@ public class EventService {
         // Delete the event - Foreign key constraint violations will be handled by
         // DBExceptionHandler
         eventRepository.deleteById(id);
+    }
+
+    public List<EventResponseDTO> getEventsByDateRange(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("Start date and end date cannot be null");
+        }
+        
+        if (startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("Start date cannot be after end date");
+        }
+        
+        List<Events> events = eventRepository.findEventsByDateRange(startDate, endDate);
+        return events.stream()
+                .map(eventMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<EventResponseDTO> getUpcomingEventsFromDate(LocalDate selectedDate) {
+        if (selectedDate == null) {
+            throw new IllegalArgumentException("Selected date cannot be null");
+        }
+        
+        List<Events> events = eventRepository.findUpcomingEventsFromDate(selectedDate);
+        return events.stream()
+                .map(eventMapper::toDto)
+                .collect(Collectors.toList());
     }
 }

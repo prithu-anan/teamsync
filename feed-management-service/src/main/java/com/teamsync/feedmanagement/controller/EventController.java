@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -83,6 +84,37 @@ public class EventController {
                 .status(HttpStatus.OK)
                 .message("Event deleted successfully")
                 .build();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/upcoming")
+    public ResponseEntity<SuccessResponse<List<EventResponseDTO>>> getUpcomingEventsFromDate(
+            @RequestParam LocalDate date) {
+        List<EventResponseDTO> events = eventService.getUpcomingEventsFromDate(date);
+        
+        SuccessResponse<List<EventResponseDTO>> response = SuccessResponse.<List<EventResponseDTO>>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("Upcoming events retrieved successfully")
+                .data(events)
+                .build();
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/range")
+    public ResponseEntity<SuccessResponse<List<EventResponseDTO>>> getEventsByDateRange(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate) {
+        List<EventResponseDTO> events = eventService.getEventsByDateRange(startDate, endDate);
+        
+        SuccessResponse<List<EventResponseDTO>> response = SuccessResponse.<List<EventResponseDTO>>builder()
+                .code(HttpStatus.OK.value())
+                .status(HttpStatus.OK)
+                .message("Events in date range retrieved successfully")
+                .data(events)
+                .build();
+        
         return ResponseEntity.ok(response);
     }
 }

@@ -104,4 +104,51 @@ export const deleteEvent = async (id) => {
             return { error: err.response.data || "Failed to delete event" };
         }
     }
+}
+
+export const getUpcomingEventsFromDate = async (date) => {
+    const token = localStorage.getItem("teamsync_jwt");
+
+    try {
+        const res = await axios.get(`${API_BASE_URL}/events/upcoming`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            params: {
+                date: date
+            }
+        });
+
+        if (res.status === 200) {
+            return res.data;
+        }
+    } catch (err) {
+        if (err.response) {
+            return { error: err.response.data || "Failed to fetch upcoming events" };
+        }
+    }
+}
+
+export const getEventsByDateRange = async (startDate, endDate) => {
+    const token = localStorage.getItem("teamsync_jwt");
+
+    try {
+        const res = await axios.get(`${API_BASE_URL}/events/range`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            params: {
+                startDate: startDate,
+                endDate: endDate
+            }
+        });
+
+        if (res.status === 200) {
+            return res.data;
+        }
+    } catch (err) {
+        if (err.response) {
+            return { error: err.response.data || "Failed to fetch events by date range" };
+        }
+    }
 } 
