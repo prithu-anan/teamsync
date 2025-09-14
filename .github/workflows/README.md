@@ -204,6 +204,11 @@ This workflow:
 ### **MongoDB** (1 instance)
 - **Notification DB**: Port 27017 (notification-service)
 
+### **Kafka Infrastructure** (3 services)
+- **Zookeeper**: Port 2181 (Kafka coordination)
+- **Kafka Broker**: Port 29092 (Message streaming)
+- **Schema Registry**: Port 8085 (Avro schema management)
+
 ## 🤖 AI Backend Multi-Database Architecture
 
 The AI Backend connects to multiple microservice databases to provide intelligent features:

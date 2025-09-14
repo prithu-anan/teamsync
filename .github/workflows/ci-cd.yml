@@ -279,7 +279,7 @@ jobs:
             
             # Kill any containers using our ports to prevent conflicts
             echo "Resolving port conflicts..."
-            for port in 8080 8081 8082 8083 8089 8090 8091 8092 8000 3000 5431 5432 5433 5434 5435 5436 27017; do
+            for port in 8080 8081 8082 8083 8089 8090 8091 8092 8000 3000 5431 5432 5433 5434 5435 5436 27017 2181 29092 8085; do
               old=$(docker ps -q --filter "publish=$port")
               if [ -n "$old" ]; then
                 echo "Killing container using port $port..."
@@ -357,6 +357,39 @@ jobs:
               -e MONGO_INITDB_DATABASE=notification_db \
               -p 27017:27017 \
               mongo:7.0
+            
+            # Kafka Infrastructure
+            echo "Starting Kafka infrastructure..."
+            
+            # Zookeeper
+            docker run -d \
+              --name zookeeper \
+              --network teamsync_network \
+              -e ZOOKEEPER_CLIENT_PORT=2181 \
+              -e ZOOKEEPER_TICK_TIME=2000 \
+              confluentinc/cp-zookeeper:7.4.0
+            
+            # Kafka Broker
+            docker run -d \
+              --name broker \
+              --network teamsync_network \
+              -p 29092:29092 \
+              -e KAFKA_BROKER_ID=1 \
+              -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+              -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://broker:29092 \
+              -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+              -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
+              -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
+              confluentinc/cp-kafka:7.4.0
+            
+            # Schema Registry
+            docker run -d \
+              --name schema-registry \
+              --network teamsync_network \
+              -p 8085:8081 \
+              -e SCHEMA_REGISTRY_HOST_NAME=schema-registry \
+              -e SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS=broker:29092 \
+              confluentinc/cp-schema-registry:7.4.0
             
             # Wait for databases to be ready
             echo "Waiting for databases to be ready..."
