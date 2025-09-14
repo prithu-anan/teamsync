@@ -249,8 +249,22 @@ jobs:
           script: |
             set -eux
             
-            # Create network if it doesn't exist
-            docker network inspect teamsync_network || docker network create teamsync_network
+            # Comprehensive cleanup of all existing containers and networks
+            echo "Performing comprehensive cleanup..."
+            
+            # Stop and remove all containers
+            echo "Stopping all running containers..."
+            docker stop $(docker ps -q) || true
+            docker rm $(docker ps -aq) || true
+            
+            # Remove all networks (except default ones)
+            echo "Cleaning up networks..."
+            docker network prune -f || true
+            docker network rm teamsync_network || true
+            
+            # Create fresh network
+            echo "Creating fresh network..."
+            docker network create teamsync_network
             
             # Pull all service images
             echo "Pulling all service images..."
@@ -265,27 +279,7 @@ jobs:
             docker pull ${{ env.IMAGE_PREFIX }}/teamsync-ai-backend:latest || echo "Warning: Failed to pull teamsync-ai-backend:latest"
             docker pull ${{ env.IMAGE_PREFIX }}/teamsync-social-flow:latest || echo "Warning: Failed to pull teamsync-social-flow:latest"
             
-            # Stop and remove existing containers with better error handling
-            echo "Stopping existing containers..."
-            
-            # Stop containers by name
-            for container in api_gateway auth_service feed_management_service message_management_service project_management_service task_management_service user_management_service notification_service teamsync-ai-backend frontend; do
-              if docker ps -q --filter "name=$container" | grep -q .; then
-                echo "Stopping $container..."
-                docker stop $container || true
-                docker rm $container || true
-              fi
-            done
-            
-            # Kill any containers using our ports to prevent conflicts
-            echo "Resolving port conflicts..."
-            for port in 8080 8081 8082 8083 8089 8090 8091 8092 8000 3000 5431 5432 5433 5434 5435 5436 27017 2181 29092 8085; do
-              old=$(docker ps -q --filter "publish=$port")
-              if [ -n "$old" ]; then
-                echo "Killing container using port $port..."
-                docker rm -f $old || true
-              fi
-            done
+            # All containers have been cleaned up in the comprehensive cleanup above
             
             # Start database services first
             echo "Starting database services..."
