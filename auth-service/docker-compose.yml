@@ -40,6 +40,8 @@ services:
     depends_on:
       auth-postgres:
         condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
     networks:
       - teamsync_network
 
