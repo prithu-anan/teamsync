@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 import re
 from collections import Counter
-from app.deps import get_db
+from app.deps import get_db_for_model
 from app.llm.factory import get_llm_provider
 
 router = APIRouter()
@@ -19,17 +19,18 @@ class EstimateDeadlineRequest(BaseModel):
     parent_task_id: Optional[int] = None
 
 # Fetch example tasks for few-shot prompting
-def get_example_tasks(db: Session, project_id: int, parent_task_id: Optional[int], limit: int = 3) -> List[Task]:
-    query = db.query(Task).filter(Task.project_id == project_id, Task.priority.isnot(None), Task.time_estimate.isnot(None))
-    if parent_task_id:
-        parent_task = db.query(Task).filter(Task.id == parent_task_id, Task.project_id == project_id).first()
-        if parent_task:
-            examples = [parent_task]
-            siblings = db.query(Task).filter(Task.parent_task_id == parent_task_id, Task.project_id == project_id).limit(limit - 1).all()
-            print(f"siblings : {siblings}")
-            examples.extend(siblings)
-            return examples[:limit]
-    return query.limit(limit).all()
+def get_example_tasks(project_id: int, parent_task_id: Optional[int], limit: int = 3) -> List[Task]:
+    with next(get_db_for_model("task")) as db:
+        query = db.query(Task).filter(Task.project_id == project_id, Task.priority.isnot(None), Task.time_estimate.isnot(None))
+        if parent_task_id:
+            parent_task = db.query(Task).filter(Task.id == parent_task_id, Task.project_id == project_id).first()
+            if parent_task:
+                examples = [parent_task]
+                siblings = db.query(Task).filter(Task.parent_task_id == parent_task_id, Task.project_id == project_id).limit(limit - 1).all()
+                print(f"siblings : {siblings}")
+                examples.extend(siblings)
+                return examples[:limit]
+        return query.limit(limit).all()
 
 # Construct prompt for LLM
 def construct_prompt(project: Project, example_tasks: List[Task], new_task: EstimateDeadlineRequest) -> str:
@@ -101,14 +102,15 @@ def aggregate_responses(parsed_responses: List[dict]) -> dict:
 
 # API endpoint
 @router.post("/tasks/estimate-deadline")
-def estimate_deadline(request: EstimateDeadlineRequest, db: Session = Depends(get_db)):
-    # Fetch project
-    project = db.query(Project).filter(Project.id == request.project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+def estimate_deadline(request: EstimateDeadlineRequest):
+    # Fetch project from project database
+    with next(get_db_for_model("project")) as project_db:
+        project = project_db.query(Project).filter(Project.id == request.project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
     # Fetch example tasks for few-shot prompting
-    example_tasks = get_example_tasks(db, request.project_id, request.parent_task_id)
+    example_tasks = get_example_tasks(request.project_id, request.parent_task_id)
 
     # Construct LLM prompt
     prompt = construct_prompt(project, example_tasks, request)

@@ -1,0 +1,489 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_PREFIX: ${{ secrets.REGISTRY_USER }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-java-services:
+    name: Build Java Services
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    strategy:
+      matrix:
+        service:
+          - name: api-gateway
+            context: ./api-gateway
+            port: 8080
+          - name: auth-service
+            context: ./auth-service
+            port: 8081
+          - name: feed-management-service
+            context: ./feed-management-service
+            port: 8090
+          - name: message-management-service
+            context: ./message-management-service
+            port: 8091
+          - name: project-management-service
+            context: ./project-management-service
+            port: 8083
+          - name: task-management-service
+            context: ./task-management-service
+            port: 8089
+          - name: user-management-service
+            context: ./user-management-service
+            port: 8082
+          - name: notification-service
+            context: ./notification-service
+            port: 8092
+
+    services:
+      docker:
+        image: docker:24.0.7
+        options: --privileged
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Create Docker network
+        run: docker network inspect teamsync_network || docker network create teamsync_network
+
+      - name: Start PostgreSQL & Flyway (for auth-service)
+        if: matrix.service.name == 'auth-service'
+        run: |
+          cd auth-service
+          docker compose up -d auth-postgres flyway
+          echo "Waiting for DB to become healthy..."
+          for i in {1..20}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' $(docker ps -qf name=auth-postgres))
+            echo "Health status: $STATUS"
+            if [ "$STATUS" == "healthy" ]; then
+              echo "Database is healthy."
+              break
+            fi
+            sleep 5
+          done
+          echo "Waiting for Flyway to finish..."
+          docker compose logs flyway
+
+      - name: Build Java service
+        run: |
+          cd ${{ matrix.service.context }}
+          chmod +x ./mvnw
+          ./mvnw -B clean package -Dmaven.test.skip=true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASS }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}
+          tags: |
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  build-ai-backend:
+    name: Build AI Backend
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    services:
+      docker:
+        image: docker:24.0.7
+        options: --privileged
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: './teamsync-ai-backend/requirements.txt'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASS }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/teamsync-ai-backend
+          tags: |
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./teamsync-ai-backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    services:
+      docker:
+        image: docker:24.0.7
+        options: --privileged
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './teamsync-social-flow/package-lock.json'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_PASS }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/teamsync-social-flow
+          tags: |
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./teamsync-social-flow
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
+            VITE_AZURE_BLOB_SAS_TOKEN=${{ secrets.VITE_AZURE_BLOB_SAS_TOKEN }}
+            VITE_AZURE_BLOB_SAS_URL=${{ secrets.VITE_AZURE_BLOB_SAS_URL }}
+            VITE_ZEGO_APP_ID=${{ secrets.VITE_ZEGO_APP_ID }}
+            VITE_ZEGO_SERVER_SECRET=${{ secrets.VITE_ZEGO_SERVER_SECRET }}
+            VITE_WEBSOCKET_URL=${{ secrets.VITE_WEBSOCKET_URL }}
+
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-latest
+    needs: [build-java-services, build-ai-backend, build-frontend]
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Deploy all services
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            set -eux
+            
+            # Create network if it doesn't exist
+            docker network inspect teamsync_network || docker network create teamsync_network
+            
+            # Pull all service images
+            echo "Pulling all service images..."
+            docker pull ${{ env.IMAGE_PREFIX }}/api-gateway:latest || echo "Warning: Failed to pull api-gateway:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/auth-service:latest || echo "Warning: Failed to pull auth-service:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/feed-management-service:latest || echo "Warning: Failed to pull feed-management-service:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/message-management-service:latest || echo "Warning: Failed to pull message-management-service:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/project-management-service:latest || echo "Warning: Failed to pull project-management-service:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/task-management-service:latest || echo "Warning: Failed to pull task-management-service:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/user-management-service:latest || echo "Warning: Failed to pull user-management-service:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/notification-service:latest || echo "Warning: Failed to pull notification-service:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/teamsync-ai-backend:latest || echo "Warning: Failed to pull teamsync-ai-backend:latest"
+            docker pull ${{ env.IMAGE_PREFIX }}/teamsync-social-flow:latest || echo "Warning: Failed to pull teamsync-social-flow:latest"
+            
+            # Stop and remove existing containers with better error handling
+            echo "Stopping existing containers..."
+            
+            # Stop containers by name
+            for container in api_gateway auth_service feed_management_service message_management_service project_management_service task_management_service user_management_service notification_service teamsync-ai-backend frontend; do
+              if docker ps -q --filter "name=$container" | grep -q .; then
+                echo "Stopping $container..."
+                docker stop $container || true
+                docker rm $container || true
+              fi
+            done
+            
+            # Kill any containers using our ports to prevent conflicts
+            echo "Resolving port conflicts..."
+            for port in 8080 8081 8082 8083 8089 8090 8091 8092 8000 3000 5431 5432 5433 5434 5435 5436 27017; do
+              old=$(docker ps -q --filter "publish=$port")
+              if [ -n "$old" ]; then
+                echo "Killing container using port $port..."
+                docker rm -f $old || true
+              fi
+            done
+            
+            # Start database services first
+            echo "Starting database services..."
+            
+            # Auth Service Database
+            docker run -d \
+              --name auth-postgres \
+              --network teamsync_network \
+              -e POSTGRES_DB=auth-db \
+              -e POSTGRES_USER=postgres \
+              -e POSTGRES_PASSWORD=postgres \
+              -p 5431:5432 \
+              postgres:15
+            
+            # User Management Database
+            docker run -d \
+              --name user-management-postgres \
+              --network teamsync_network \
+              -e POSTGRES_DB=user_management_db \
+              -e POSTGRES_USER=postgres \
+              -e POSTGRES_PASSWORD=postgres \
+              -p 5432:5432 \
+              postgres:15
+            
+            # Project Management Database
+            docker run -d \
+              --name project-management-postgres \
+              --network teamsync_network \
+              -e POSTGRES_DB=project_management_db \
+              -e POSTGRES_USER=postgres \
+              -e POSTGRES_PASSWORD=postgres \
+              -p 5433:5432 \
+              postgres:15
+            
+            # Task Management Database
+            docker run -d \
+              --name task-management-postgres \
+              --network teamsync_network \
+              -e POSTGRES_DB=task_management_db \
+              -e POSTGRES_USER=postgres \
+              -e POSTGRES_PASSWORD=postgres \
+              -p 5434:5432 \
+              postgres:15
+            
+            # Feed Management Database
+            docker run -d \
+              --name feed-management-postgres \
+              --network teamsync_network \
+              -e POSTGRES_DB=feed_management_db \
+              -e POSTGRES_USER=postgres \
+              -e POSTGRES_PASSWORD=postgres \
+              -p 5435:5432 \
+              postgres:15
+            
+            # Message Management Database
+            docker run -d \
+              --name message-management-postgres \
+              --network teamsync_network \
+              -e POSTGRES_DB=message_management_db \
+              -e POSTGRES_USER=postgres \
+              -e POSTGRES_PASSWORD=postgres \
+              -p 5436:5432 \
+              postgres:15
+            
+            # Notification Service MongoDB
+            docker run -d \
+              --name notification-mongo \
+              --network teamsync_network \
+              -e MONGO_INITDB_DATABASE=notification_db \
+              -p 27017:27017 \
+              mongo:7.0
+            
+            # Wait for databases to be ready
+            echo "Waiting for databases to be ready..."
+            sleep 20
+            
+            # Start Flyway migration for auth service (adjust the volume path as needed)
+            echo "Running database migrations..."
+            docker run --rm \
+              --network teamsync_network \
+              -v ~/teamsync/auth-service/flyway/sql:/flyway/sql \
+              flyway/flyway:10 \
+              -url=jdbc:postgresql://auth-postgres:5432/auth-db \
+              -schemas=public \
+              -user=postgres \
+              -password=postgres \
+              migrate || echo "Flyway migration failed, continuing..."
+            
+            # Start all services
+            echo "Starting all services..."
+            
+            # Start API Gateway
+            docker run -d \
+              --name api_gateway \
+              --network teamsync_network \
+              -p 8080:8080 \
+              ${{ env.IMAGE_PREFIX }}/api-gateway:latest
+            
+            # Start Auth Service
+            docker run -d \
+              --name auth_service \
+              --network teamsync_network \
+              -p 8081:8081 \
+              -e SPRING_DATASOURCE_URL=jdbc:postgresql://auth-postgres:5432/auth-db \
+              -e SPRING_DATASOURCE_USERNAME=postgres \
+              -e SPRING_DATASOURCE_PASSWORD=postgres \
+              ${{ env.IMAGE_PREFIX }}/auth-service:latest
+            
+            # Start User Management Service
+            docker run -d \
+              --name user_management_service \
+              --network teamsync_network \
+              -p 8082:8082 \
+              -e SPRING_DATASOURCE_URL=jdbc:postgresql://user-management-postgres:5432/user_management_db \
+              -e SPRING_DATASOURCE_USERNAME=postgres \
+              -e SPRING_DATASOURCE_PASSWORD=postgres \
+              -e AZURE_CONNECTION_STRING="${{ secrets.AZURE_CONNECTION_STRING }}" \
+              -e AZURE_CONTAINER_NAME="${{ secrets.AZURE_CONTAINER_NAME }}" \
+              -e AZURE_ACCOUNT_NAME="${{ secrets.AZURE_ACCOUNT_NAME }}" \
+              -e AZURE_SAS_TOKEN="${{ secrets.AZURE_SAS_TOKEN }}" \
+              ${{ env.IMAGE_PREFIX }}/user-management-service:latest
+            
+            # Start Project Management Service
+            docker run -d \
+              --name project_management_service \
+              --network teamsync_network \
+              -p 8083:8083 \
+              -e SPRING_DATASOURCE_URL=jdbc:postgresql://project-management-postgres:5432/project_management_db \
+              -e SPRING_DATASOURCE_USERNAME=postgres \
+              -e SPRING_DATASOURCE_PASSWORD=postgres \
+              ${{ env.IMAGE_PREFIX }}/project-management-service:latest
+            
+            # Start Feed Management Service
+            docker run -d \
+              --name feed_management_service \
+              --network teamsync_network \
+              -p 8090:8090 \
+              -e SPRING_DATASOURCE_URL=jdbc:postgresql://feed-management-postgres:5432/feed_management_db \
+              -e SPRING_DATASOURCE_USERNAME=postgres \
+              -e SPRING_DATASOURCE_PASSWORD=postgres \
+              -e AZURE_CONNECTION_STRING="${{ secrets.AZURE_CONNECTION_STRING }}" \
+              -e AZURE_CONTAINER_NAME="${{ secrets.AZURE_CONTAINER_NAME }}" \
+              -e AZURE_ACCOUNT_NAME="${{ secrets.AZURE_ACCOUNT_NAME }}" \
+              -e AZURE_SAS_TOKEN="${{ secrets.AZURE_SAS_TOKEN }}" \
+              ${{ env.IMAGE_PREFIX }}/feed-management-service:latest
+            
+            # Start Message Management Service
+            docker run -d \
+              --name message_management_service \
+              --network teamsync_network \
+              -p 8091:8091 \
+              -e SPRING_DATASOURCE_URL=jdbc:postgresql://message-management-postgres:5432/message_management_db \
+              -e SPRING_DATASOURCE_USERNAME=postgres \
+              -e SPRING_DATASOURCE_PASSWORD=postgres \
+              -e AZURE_CONNECTION_STRING="${{ secrets.AZURE_CONNECTION_STRING }}" \
+              -e AZURE_CONTAINER_NAME="${{ secrets.AZURE_CONTAINER_NAME }}" \
+              -e AZURE_ACCOUNT_NAME="${{ secrets.AZURE_ACCOUNT_NAME }}" \
+              -e AZURE_SAS_TOKEN="${{ secrets.AZURE_SAS_TOKEN }}" \
+              ${{ env.IMAGE_PREFIX }}/message-management-service:latest
+            
+            # Start Task Management Service
+            docker run -d \
+              --name task_management_service \
+              --network teamsync_network \
+              -p 8089:8089 \
+              -e SPRING_DATASOURCE_URL=jdbc:postgresql://task-management-postgres:5432/task_management_db \
+              -e SPRING_DATASOURCE_USERNAME=postgres \
+              -e SPRING_DATASOURCE_PASSWORD=postgres \
+              ${{ env.IMAGE_PREFIX }}/task-management-service:latest
+            
+            # Start Notification Service
+            docker run -d \
+              --name notification_service \
+              --network teamsync_network \
+              -p 8092:8092 \
+              -e SPRING_DATA_MONGODB_URI=mongodb://notification-mongo:27017/notification_db \
+              -e SPRING_KAFKA_BOOTSTRAP_SERVERS=broker:29092 \
+              -e SPRING_KAFKA_CONSUMER_PROPERTIES_SCHEMA_REGISTRY_URL=http://schema-registry:8081 \
+              -e SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL=http://schema-registry:8081 \
+              ${{ env.IMAGE_PREFIX }}/notification-service:latest
+            
+            # Start AI Backend
+            docker run -d \
+              --name teamsync-ai-backend \
+              --network teamsync_network \
+              -p 8000:8000 \
+              -e AUTH_DATABASE_URL="postgresql://postgres:postgres@localhost:5431/auth-db" \
+              -e PROJECT_DATABASE_URL="postgresql://postgres:postgres@localhost:5433/project_management_db" \
+              -e TASK_DATABASE_URL="postgresql://postgres:postgres@localhost:5434/task_management_db" \
+              -e USER_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/user_management_db" \
+              -e MESSAGE_DATABASE_URL="postgresql://postgres:postgres@localhost:5436/message_management_db" \
+              -e GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+              -e DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}" \
+              -e QUADRANT_URL="${{ secrets.QUADRANT_URL }}" \
+              -e QUADRANT_API_KEY="${{ secrets.QUADRANT_API_KEY }}" \
+              -e OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
+              -e PROJECT_ID="${{ secrets.PROJECT_ID }}" \
+              -e BASE_SERVER_URL="${{ secrets.BASE_SERVER_URL }}" \
+              ${{ env.IMAGE_PREFIX }}/teamsync-ai-backend:latest
+            
+            # Start Frontend
+            docker run -d \
+              --name frontend \
+              -p 3000:80 \
+              ${{ env.IMAGE_PREFIX }}/teamsync-social-flow:latest
+            
+            echo "All services started successfully!"
+            docker ps

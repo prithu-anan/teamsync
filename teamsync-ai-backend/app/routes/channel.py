@@ -8,7 +8,7 @@ from app.models.user import User
 from app.llm.factory import get_llm_provider
 from sqlalchemy import desc,or_
 import json
-from app.deps import get_db
+from app.deps import get_db_for_model
 import re
 
 router = APIRouter()
@@ -41,20 +41,21 @@ class AutoReplyResponse(BaseModel):
 # Fetch conversation context
 
 # Fetch conversation context
-def get_conversation_context(db: Session, channel_id: Optional[int] = None, recipient_id: Optional[int] = None, sender_id: Optional[int] = None, parent_thread_id: Optional[int] = None, limit: int = 10) -> List[Message]:
-    query = db.query(Message)
-    if channel_id:
-        query = query.filter(Message.channel_id == channel_id)
-    if recipient_id and sender_id:
-        query = query.filter(
-            or_(
-                (Message.sender_id == sender_id) & (Message.recipient_id == recipient_id),
-                (Message.sender_id == recipient_id) & (Message.recipient_id == sender_id)
+def get_conversation_context(channel_id: Optional[int] = None, recipient_id: Optional[int] = None, sender_id: Optional[int] = None, parent_thread_id: Optional[int] = None, limit: int = 10) -> List[Message]:
+    with next(get_db_for_model("message")) as db:
+        query = db.query(Message)
+        if channel_id:
+            query = query.filter(Message.channel_id == channel_id)
+        if recipient_id and sender_id:
+            query = query.filter(
+                or_(
+                    (Message.sender_id == sender_id) & (Message.recipient_id == recipient_id),
+                    (Message.sender_id == recipient_id) & (Message.recipient_id == sender_id)
+                )
             )
-        )
-    if parent_thread_id:
-        query = query.filter(Message.thread_parent_id == parent_thread_id)
-    return query.order_by(desc(Message.timestamp)).limit(limit).all()
+        if parent_thread_id:
+            query = query.filter(Message.thread_parent_id == parent_thread_id)
+        return query.order_by(desc(Message.timestamp)).limit(limit).all()
 
 # Construct LLM prompt
 def construct_prompt(
@@ -118,7 +119,6 @@ def parse_llm_response(response: str) -> List[ReplySuggestion]:
 @router.post("/channels/auto-reply", response_model=AutoReplyResponse)
 def auto_reply(
     request: Union[ChannelAutoReplyRequest, DirectMessageAutoReplyRequest],
-    db: Session = Depends(get_db),
 ):
     channel_id = getattr(request, "channel_id", None)
     recipient_id = getattr(request, "recipient_id", None)
@@ -135,25 +135,29 @@ def auto_reply(
             status_code=400, detail="Must specify either channel_id or recipient_id"
         )
 
-    # Validate sender exists
-    sender = db.query(User).filter(User.id == sender_id).first()
-    if not sender:
-        raise HTTPException(status_code=404, detail="Sender not found")
+    # Validate sender exists (from user database)
+    with next(get_db_for_model("user")) as user_db:
+        sender = user_db.query(User).filter(User.id == sender_id).first()
+        if not sender:
+            raise HTTPException(status_code=404, detail="Sender not found")
 
     # Validate channel or recipient exists
     if channel_id:
-        channel = db.query(Channel).filter(Channel.id == channel_id).first()
-        if not channel:
-            raise HTTPException(status_code=404, detail="Channel not found")
+        with next(get_db_for_model("channel")) as channel_db:
+            channel = channel_db.query(Channel).filter(Channel.id == channel_id).first()
+            if not channel:
+                raise HTTPException(status_code=404, detail="Channel not found")
+    
     if recipient_id:
-        recipient = db.query(User).filter(User.id == recipient_id).first()
-        if not recipient:
-            raise HTTPException(status_code=404, detail="Recipient not found")
+        with next(get_db_for_model("user")) as user_db:
+            recipient = user_db.query(User).filter(User.id == recipient_id).first()
+            if not recipient:
+                raise HTTPException(status_code=404, detail="Recipient not found")
     else:
         recipient = None
 
     # Fetch conversation context
-    messages = get_conversation_context(db, channel_id, recipient_id, sender_id,parent_thread_id)
+    messages = get_conversation_context(channel_id, recipient_id, sender_id, parent_thread_id)
 
     # Construct LLM prompt
     prompt = construct_prompt(messages, sender, recipient)
