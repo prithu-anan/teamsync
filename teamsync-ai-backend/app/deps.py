@@ -1,39 +1,9 @@
 # app/deps.py
-from app.db import (
-    AuthSessionLocal,
-    ProjectSessionLocal, 
-    TaskSessionLocal, 
-    UserSessionLocal, 
-    MessageSessionLocal,
-    DATABASE_MAPPING
-)
-from sqlalchemy.orm import Session
-from typing import Generator
+from app.db import SessionLocal
 
-# Dependency to get the appropriate DB session based on model type
-def get_db_for_model(model_type: str) -> Generator[Session, None, None]:
-    """Get database session for specific model type"""
-    if model_type == "auth":
-        db = AuthSessionLocal()
-    elif model_type == "project":
-        db = ProjectSessionLocal()
-    elif model_type == "task":
-        db = TaskSessionLocal()
-    elif model_type == "user":
-        db = UserSessionLocal()
-    elif model_type in ["message", "channel"]:
-        db = MessageSessionLocal()
-    else:
-        raise ValueError(f"Unknown model type: {model_type}")
-    
-    try:
-        yield db
-    finally:
-        db.close()
-
-# Legacy function for backward compatibility (defaults to project DB)
+# Dependency to get DB session
 def get_db():
-    db = ProjectSessionLocal()
+    db = SessionLocal()
     try:
         yield db
     finally:
