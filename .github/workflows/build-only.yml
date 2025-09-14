@@ -136,6 +136,13 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: './teamsync-ai-backend/requirements.txt'
+      
+      - name: Clear pip cache and install dependencies
+        run: |
+          pip cache purge || true
+          rm -rf ~/.cache/pip || true
+          cd teamsync-ai-backend
+          pip install --no-cache-dir -r requirements.txt
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

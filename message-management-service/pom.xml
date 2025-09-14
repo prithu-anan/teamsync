@@ -204,6 +204,7 @@
 						<configuration>
 							<sourceDirectory>${project.basedir}/src/main/resources/avro</sourceDirectory>
 							<outputDirectory>${project.basedir}/src/main/java/</outputDirectory>
+							<skip>true</skip>
 						</configuration>
 					</execution>
 				</executions>
