@@ -13,7 +13,7 @@ class NotificationWebSocketService {
 
   private initializeClient() {
     try {
-      const socket = new SockJS('http://notification-service:8092/ws');
+      const socket = new SockJS('http://localhost:8092/ws');
       this.client = new Client({
         webSocketFactory: () => socket,
         debug: (str) => {
