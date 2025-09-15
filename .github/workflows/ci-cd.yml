@@ -391,7 +391,7 @@ jobs:
             
             # Start Auth Service
             docker run -d \
-              --name auth_service \
+              --name auth-service \
               --network teamsync_network \
               -p 8081:8081 \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://auth-postgres:5432/auth-db \
@@ -401,7 +401,7 @@ jobs:
             
             # Start User Management Service
             docker run -d \
-              --name user_management_service \
+              --name user-management-service \
               --network teamsync_network \
               -p 8082:8082 \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://user-management-postgres:5432/user_management_db \
@@ -415,7 +415,7 @@ jobs:
             
             # Start Project Management Service
             docker run -d \
-              --name project_management_service \
+              --name project-management-service \
               --network teamsync_network \
               -p 8083:8083 \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://project-management-postgres:5432/project_management_db \
@@ -425,7 +425,7 @@ jobs:
             
             # Start Feed Management Service
             docker run -d \
-              --name feed_management_service \
+              --name feed-management-service \
               --network teamsync_network \
               -p 8090:8090 \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://feed-management-postgres:5432/feed_management_db \
@@ -439,7 +439,7 @@ jobs:
             
             # Start Message Management Service
             docker run -d \
-              --name message_management_service \
+              --name message-management-service \
               --network teamsync_network \
               -p 8091:8091 \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://message-management-postgres:5432/message_management_db \
@@ -453,7 +453,7 @@ jobs:
             
             # Start Task Management Service
             docker run -d \
-              --name task_management_service \
+              --name task-management-service \
               --network teamsync_network \
               -p 8089:8089 \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://task-management-postgres:5432/task_management_db \
@@ -463,7 +463,7 @@ jobs:
             
             # Start Notification Service
             docker run -d \
-              --name notification_service \
+              --name notification-service \
               --network teamsync_network \
               -p 8092:8092 \
               -e SPRING_DATA_MONGODB_URI=mongodb://notification-mongo:27017/notification_db \
@@ -494,6 +494,7 @@ jobs:
             # Start Frontend
             docker run -d \
               --name frontend \
+              --network teamsync_network \
               -p 3000:80 \
               ${{ env.IMAGE_PREFIX }}/teamsync-social-flow:latest
             

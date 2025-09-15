@@ -17,7 +17,7 @@ services:
 
   feed-management-service:
     build: .
-    container_name: feed_management_service
+    container_name: feed-management-service
     ports:
       - "8090:8090"
     env_file:

@@ -17,7 +17,7 @@ services:
 
   task-management-service:
     build: .
-    container_name: task_management_service
+    container_name: task-management-service
     ports:
       - "8089:8089"
     environment:
