@@ -29,7 +29,7 @@ class WebSocketService {
 
   private initializeClient() {
     try {
-      const socket = new SockJS('http://localhost:8091/ws');
+      const socket = new SockJS('http://13.60.242.32:8091/ws');
       this.client = new Client({
         webSocketFactory: () => socket,
         debug: (str) => {
