@@ -389,18 +389,6 @@ jobs:
             echo "Waiting for databases to be ready..."
             sleep 20
             
-            # Start Flyway migration for auth service (adjust the volume path as needed)
-            echo "Running database migrations..."
-            docker run --rm \
-              --network teamsync_network \
-              -v ~/teamsync/auth-service/flyway/sql:/flyway/sql \
-              flyway/flyway:10 \
-              -url=jdbc:postgresql://auth-postgres:5432/auth-db \
-              -schemas=public \
-              -user=postgres \
-              -password=postgres \
-              migrate || echo "Flyway migration failed, continuing..."
-            
             # Start all services
             echo "Starting all services..."
             
