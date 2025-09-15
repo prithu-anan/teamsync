@@ -67,11 +67,11 @@ jobs:
       - name: Create Docker network
         run: docker network inspect teamsync_network || docker network create teamsync_network
 
-      - name: Start PostgreSQL & Flyway (for auth-service)
+      - name: Start PostgreSQL (for auth-service)
         if: matrix.service.name == 'auth-service'
         run: |
           cd auth-service
-          docker compose up -d auth-postgres flyway
+          docker compose up -d auth-postgres
           echo "Waiting for DB to become healthy..."
           for i in {1..20}; do
             STATUS=$(docker inspect --format='{{.State.Health.Status}}' $(docker ps -qf name=auth-postgres))
@@ -82,8 +82,6 @@ jobs:
             fi
             sleep 5
           done
-          echo "Waiting for Flyway to finish..."
-          docker compose logs flyway
 
       - name: Build Java service
         run: |
