@@ -1,50 +1,51 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from app.models import Task, Project
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional, List
 import re
 from collections import Counter
-from app.deps import get_db
+from app.clients import ProjectClient, TaskClient, UserClient
+from app.deps import get_project_client, get_task_client, get_user_client
 from app.llm.factory import get_llm_provider
 
 router = APIRouter()
 llm = get_llm_provider("gemini")
 
-# Request model for input validation
 class EstimateDeadlineRequest(BaseModel):
     title: str
     description: str
     project_id: int
     parent_task_id: Optional[int] = None
 
-# Fetch example tasks for few-shot prompting
-def get_example_tasks(db: Session, project_id: int, parent_task_id: Optional[int], limit: int = 3) -> List[Task]:
-    query = db.query(Task).filter(Task.project_id == project_id, Task.priority.isnot(None), Task.time_estimate.isnot(None))
+def get_example_tasks(tasks: List[dict], parent_task_id: Optional[int] = None, limit: int = 3) -> List[dict]:
+    """Filter tasks to get examples for prompting"""
     if parent_task_id:
-        parent_task = db.query(Task).filter(Task.id == parent_task_id, Task.project_id == project_id).first()
+        # Find parent task and siblings
+        parent_task = next((t for t in tasks if t["id"] == parent_task_id), None)
         if parent_task:
             examples = [parent_task]
-            siblings = db.query(Task).filter(Task.parent_task_id == parent_task_id, Task.project_id == project_id).limit(limit - 1).all()
-            print(f"siblings : {siblings}")
+            siblings = [t for t in tasks if t.get("parentTaskId") == parent_task_id][:limit-1]
             examples.extend(siblings)
             return examples[:limit]
-    return query.limit(limit).all()
+    
+    # Return tasks with priority and time estimate
+    filtered_tasks = [t for t in tasks if t.get("priority") and t.get("timeEstimate")]
+    return filtered_tasks[:limit]
 
-# Construct prompt for LLM
-def construct_prompt(project: Project, example_tasks: List[Task], new_task: EstimateDeadlineRequest) -> str:
+def construct_prompt(project: dict, example_tasks: List[dict], new_task: EstimateDeadlineRequest) -> str:
     prompt = "You are an AI assistant for an IT farm. Your task is to estimate the priority and time required for a new task based on its title, description, and related tasks in the project.\n\n"
     prompt += "Here is the project information:\n\n"
-    prompt += f"Project Title: {project.title}\n"
-    prompt += f"Project Description: {project.description or 'No description available'}\n\n"
+    prompt += f"Project Title: {project['title']}\n"
+    prompt += f"Project Description: {project.get('description', 'No description available')}\n\n"
+    
     if example_tasks:
         prompt += "Here are some example tasks in the project:\n\n"
         for i, task in enumerate(example_tasks, 1):
             prompt += f"Task {i}:\n"
-            prompt += f"Title: {task.title}\n"
-            prompt += f"Description: {task.description or 'No description'}\n"
-            prompt += f"Priority: {task.priority}\n"
-            prompt += f"Time Estimate: {task.time_estimate}\n\n"
+            prompt += f"Title: {task['title']}\n"
+            prompt += f"Description: {task.get('description', 'No description')}\n"
+            prompt += f"Priority: {task.get('priority', 'Not set')}\n"
+            prompt += f"Time Estimate: {task.get('timeEstimate', 'Not set')}\n\n"
+    
     prompt += "Now, here is the new task:\n\n"
     prompt += f"Title: {new_task.title}\n"
     prompt += f"Description: {new_task.description}\n\n"
@@ -55,11 +56,11 @@ def construct_prompt(project: Project, example_tasks: List[Task], new_task: Esti
     prompt += "Comment: [explanation]\n"
     return prompt
 
-# Parse LLM response into structured data
 def parse_response(response: str) -> Optional[dict]:
     priority_match = re.search(r"Priority:\s*(\w+)", response, re.IGNORECASE)
     time_match = re.search(r"Estimated Time:\s*([\d.]+)\s*hours", response, re.IGNORECASE)
     comment_match = re.search(r"Comment:\s*(.+)", response, re.DOTALL)
+    
     if priority_match and time_match and comment_match:
         priority = priority_match.group(1).lower()
         allowed_priorities = {"low", "medium", "high", "urgent"}
@@ -75,14 +76,12 @@ def parse_response(response: str) -> Optional[dict]:
         return {"priority": priority, "estimated_time": time, "comment": comment}
     return None
 
-# Format time into hours or days
 def format_time(hours: float) -> str:
     if hours >= 24:
         days = hours / 24
         return f"{days:.1f} days"
     return f"{hours:.1f} hours"
 
-# Aggregate multiple LLM responses
 def aggregate_responses(parsed_responses: List[dict]) -> dict:
     if not parsed_responses:
         return None
@@ -92,34 +91,45 @@ def aggregate_responses(parsed_responses: List[dict]) -> dict:
     most_common_priority = priority_counter.most_common(1)[0][0]
     average_time = sum(times) / len(times)
     formatted_time = format_time(average_time)
-    comment = parsed_responses[0]["comment"]  # Use first comment
+    comment = parsed_responses[0]["comment"]
     return {
         "priority": most_common_priority,
         "estimated_time": formatted_time,
         "comment": comment
     }
 
-# API endpoint
 @router.post("/tasks/estimate-deadline")
-def estimate_deadline(request: EstimateDeadlineRequest, db: Session = Depends(get_db)):
+async def estimate_deadline(
+    request: EstimateDeadlineRequest,
+    authorization: str = Header(..., description="JWT token in format: Bearer <token>"),
+    project_client: ProjectClient = Depends(get_project_client),
+    task_client: TaskClient = Depends(get_task_client),
+    user_client: UserClient = Depends(get_user_client)
+):
+    # Extract JWT token
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+    
+    jwt_token = authorization[7:]
+    
     # Fetch project
-    project = db.query(Project).filter(Project.id == request.project_id).first()
+    project = await project_client.get_project_by_id(request.project_id, jwt_token)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Fetch example tasks for few-shot prompting
-    example_tasks = get_example_tasks(db, request.project_id, request.parent_task_id)
+    # Fetch project tasks for examples
+    tasks = await task_client.get_tasks_by_project(request.project_id, jwt_token)
+    example_tasks = get_example_tasks(tasks, request.parent_task_id)
 
     # Construct LLM prompt
     prompt = construct_prompt(project, example_tasks, request)
 
-    print(f"prompt : {prompt}")
+    print(f"prompt: {prompt}")
 
     # Get LLM responses
     try:
         responses = llm.generate(prompt)
-        print(f"llm said {responses}")
-
+        print(f"llm said: {responses}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM request failed: {str(e)}")
 

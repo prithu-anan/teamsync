@@ -1,65 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional, List, Union
-from app.models.channel import Channel
-from app.models.message import Message
-from app.models.user import User
+from app.clients import MessageClient, UserClient
+from app.deps import get_message_client, get_user_client
 from app.llm.factory import get_llm_provider
-from sqlalchemy import desc,or_
 import json
-from app.deps import get_db
 import re
 
 router = APIRouter()
 llm = get_llm_provider("gemini")
 
-
-# Request models for input validation
 class ChannelAutoReplyRequest(BaseModel):
     channel_id: int
     sender_id: int
     parent_thread_id: Optional[int] = None
-
 
 class DirectMessageAutoReplyRequest(BaseModel):
     recipient_id: int
     sender_id: int
     parent_thread_id: Optional[int] = None
 
-
-# Response model
 class ReplySuggestion(BaseModel):
     reply: str
     tone: str
 
-
 class AutoReplyResponse(BaseModel):
     suggestions: List[ReplySuggestion]
 
-
-# Fetch conversation context
-
-# Fetch conversation context
-def get_conversation_context(db: Session, channel_id: Optional[int] = None, recipient_id: Optional[int] = None, sender_id: Optional[int] = None, parent_thread_id: Optional[int] = None, limit: int = 10) -> List[Message]:
-    query = db.query(Message)
-    if channel_id:
-        query = query.filter(Message.channel_id == channel_id)
-    if recipient_id and sender_id:
-        query = query.filter(
-            or_(
-                (Message.sender_id == sender_id) & (Message.recipient_id == recipient_id),
-                (Message.sender_id == recipient_id) & (Message.recipient_id == sender_id)
-            )
-        )
-    if parent_thread_id:
-        query = query.filter(Message.thread_parent_id == parent_thread_id)
-    return query.order_by(desc(Message.timestamp)).limit(limit).all()
-
-# Construct LLM prompt
-def construct_prompt(
-    messages: List[Message], sender: User, recipient: Optional[User] = None
-) -> str:
+def construct_prompt(messages: List[dict], sender: dict, recipient: Optional[dict] = None) -> str:
     prompt = """You are an expert communication assistant helping users craft quick replies in messaging channels. Your task is to generate 3 relevant, concise response suggestions for the sender based on the conversation context.
 
 ### Sender Information:
@@ -68,14 +36,16 @@ Role: {sender_role}
 
 ### Conversation Context:
 """.format(
-        sender_name=sender.name, sender_role=sender.designation or "Not specified"
+        sender_name=sender["name"], 
+        sender_role=sender.get("designation", "Not specified")
     )
-    for message in reversed(messages):  # Reverse to show oldest first
-        sender_name = message.sender.name if message.sender else "Unknown"
-        prompt += f"{sender_name} ({message.timestamp}): {message.content}\n"
+    
+    for message in reversed(messages[-10:]):  # Last 10 messages, oldest first
+        sender_name = message.get("senderName", "Unknown")
+        prompt += f"{sender_name} ({message.get('timestamp', 'Unknown time')}): {message.get('content', '')}\n"
 
     if recipient:
-        prompt += f"\n### Recipient Information:\nName: {recipient.name}\nRole: {recipient.designation or 'Not specified'}\n"
+        prompt += f"\n### Recipient Information:\nName: {recipient['name']}\nRole: {recipient.get('designation', 'Not specified')}\n"
 
     prompt += """
 ### Instructions:
@@ -94,15 +64,11 @@ Role: {sender_role}
     {"reply": "suggestion", "tone": "diplomatic"},
     {"reply": "suggestion", "tone": "friendly"}
 ]
-"""
+```"""
     return prompt
 
-
-# Parse LLM response
-# Parse LLM response
 def parse_llm_response(response: str) -> List[ReplySuggestion]:
     try:
-        # Remove markdown code fences and any surrounding text
         cleaned_response = re.sub(
             r"```json\n|\n```", "", response, flags=re.MULTILINE
         ).strip()
@@ -113,16 +79,21 @@ def parse_llm_response(response: str) -> List[ReplySuggestion]:
             status_code=500, detail=f"Failed to parse LLM response: {str(e)}"
         )
 
-
-# API endpoint
 @router.post("/channels/auto-reply", response_model=AutoReplyResponse)
-def auto_reply(
+async def auto_reply(
     request: Union[ChannelAutoReplyRequest, DirectMessageAutoReplyRequest],
-    db: Session = Depends(get_db),
+    authorization: str = Header(..., description="JWT token in format: Bearer <token>"),
+    message_client: MessageClient = Depends(get_message_client),
+    user_client: UserClient = Depends(get_user_client)
 ):
+    # Extract JWT token
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+    
+    jwt_token = authorization[7:]
+    
     channel_id = getattr(request, "channel_id", None)
     recipient_id = getattr(request, "recipient_id", None)
-    parent_thread_id = request.parent_thread_id
     sender_id = request.sender_id
 
     # Validate input
@@ -136,34 +107,35 @@ def auto_reply(
         )
 
     # Validate sender exists
-    sender = db.query(User).filter(User.id == sender_id).first()
+    sender = await user_client.get_user_by_id(sender_id)
     if not sender:
         raise HTTPException(status_code=404, detail="Sender not found")
 
-    # Validate channel or recipient exists
+    # Validate channel or recipient
     if channel_id:
-        channel = db.query(Channel).filter(Channel.id == channel_id).first()
+        channel = await message_client.get_channel_by_id(channel_id, jwt_token)
         if not channel:
             raise HTTPException(status_code=404, detail="Channel not found")
+    
+    recipient = None
     if recipient_id:
-        recipient = db.query(User).filter(User.id == recipient_id).first()
+        recipient = await user_client.get_user_by_id(recipient_id)
         if not recipient:
             raise HTTPException(status_code=404, detail="Recipient not found")
-    else:
-        recipient = None
 
     # Fetch conversation context
-    messages = get_conversation_context(db, channel_id, recipient_id, sender_id,parent_thread_id)
+    messages = []
+    if channel_id:
+        messages = await message_client.get_channel_messages(channel_id, jwt_token)
 
     # Construct LLM prompt
     prompt = construct_prompt(messages, sender, recipient)
-
     print(f"prompt: {prompt}")
 
     # Get LLM response
     try:
         responses = llm.generate(prompt)
-        print(f"llm said: {responses[0]}")
+        print(f"llm said: {responses[0] if responses else 'No response'}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM request failed: {str(e)}")
 

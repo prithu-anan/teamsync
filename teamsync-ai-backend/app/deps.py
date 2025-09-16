@@ -1,10 +1,13 @@
-# app/deps.py
-from app.db import SessionLocal
+from app.clients import UserClient, ProjectClient, TaskClient, MessageClient
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def get_user_client() -> UserClient:
+    return UserClient()
+
+def get_project_client() -> ProjectClient:
+    return ProjectClient()
+
+def get_task_client() -> TaskClient:
+    return TaskClient()
+
+def get_message_client() -> MessageClient:
+    return MessageClient()

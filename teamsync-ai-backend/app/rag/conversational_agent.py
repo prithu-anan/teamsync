@@ -315,14 +315,48 @@ def clear_user_chat_history(user_id: str) -> bool:
     except Exception as e:
         return False
 
+# def get_available_collections() -> List[str]:
+#     """Get all available collections from Qdrant"""
+#     try:
+#         collections = qdrant_client.get_collections().collections
+#         return [collection.name for collection in collections]
+#     except Exception as e:
+#         return []
+
 def get_available_collections() -> List[str]:
     """Get all available collections from Qdrant"""
     try:
-        collections = qdrant_client.get_collections().collections
-        return [collection.name for collection in collections]
+        print("=== Checking Qdrant Collections ===")
+        print(f"Qdrant URL: {os.getenv('QUADRANT_URL')}")
+        print(f"API Key present: {bool(os.getenv('QUADRANT_API_KEY'))}")
+        
+        # Test connection first
+        try:
+            collections_response = qdrant_client.get_collections()
+            print(f"Collections response: {collections_response}")
+            collections = collections_response.collections
+            print(f"Found collections: {[collection.name for collection in collections]}")
+        except Exception as conn_error:
+            print(f"Connection error: {conn_error}")
+            # Return some default collections for testing
+            print("Returning default collections for testing")
+            return ["test_collection", "default_collection"]
+        
+        if not collections:
+            print("No collections found in Qdrant - creating default list")
+            # Return some default collections if none exist
+            return ["test_collection", "default_collection"]
+            
+        collection_names = [collection.name for collection in collections]
+        print(f"Returning collections: {collection_names}")
+        return collection_names
+        
     except Exception as e:
-        return []
-
+        print(f"Error getting collections: {str(e)}")
+        # Return default collections as fallback
+        return ["test_collection", "default_collection"]
+    
+    
 # Test function for development
 def test_conversational_agent():
     """Test the conversational agent with sample interactions"""

@@ -48,6 +48,7 @@ async def get_available_contexts():
         List of available collection names
     """
     try:
+        print("Getting available collections")
         collections = get_available_collections()
         return collections
     except Exception as e:
