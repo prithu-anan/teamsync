@@ -154,6 +154,11 @@ jobs:
           tags: |
             type=raw,value=latest
 
+      - name: Create Firebase credentials file
+        run: |
+          cd teamsync-ai-backend
+          echo '${{ secrets.FIREBASE_CREDENTIALS }}' > firebase-creds.json
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -477,11 +482,11 @@ jobs:
               --name teamsync-ai-backend \
               --network teamsync_network \
               -p 8000:8000 \
-              -e AUTH_DATABASE_URL="postgresql://postgres:postgres@localhost:5431/auth-db" \
-              -e PROJECT_DATABASE_URL="postgresql://postgres:postgres@localhost:5433/project_management_db" \
-              -e TASK_DATABASE_URL="postgresql://postgres:postgres@localhost:5434/task_management_db" \
-              -e USER_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/user_management_db" \
-              -e MESSAGE_DATABASE_URL="postgresql://postgres:postgres@localhost:5436/message_management_db" \
+              -e AUTH_DATABASE_URL="${{ secrets.AUTH_DATABASE_URL }}" \
+              -e PROJECT_DATABASE_URL="${{ secrets.PROJECT_DATABASE_URL }}" \
+              -e TASK_DATABASE_URL="${{ secrets.TASK_DATABASE_URL }}" \
+              -e USER_DATABASE_URL="${{ secrets.USER_DATABASE_URL }}" \
+              -e MESSAGE_DATABASE_URL="${{ secrets.MESSAGE_DATABASE_URL }}" \
               -e GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
               -e DEEPSEEK_API_KEY="${{ secrets.DEEPSEEK_API_KEY }}" \
               -e QUADRANT_URL="${{ secrets.QUADRANT_URL }}" \

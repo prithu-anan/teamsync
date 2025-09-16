@@ -11,6 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your code
 COPY . .
 
+# Copy Firebase credentials if they exist
+COPY firebase-creds.json* ./
+
 # Set Google Application Credentials environment variable
 ENV GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-creds.json
 
