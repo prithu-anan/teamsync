@@ -157,8 +157,8 @@ jobs:
       - name: Create Firebase credentials file
         run: |
           cd teamsync-ai-backend
-          cat > firebase-creds.json << 'EOF'
-          ${{ secrets.FIREBASE_CREDENTIALS }}
+          cat > firebase-creds.json <<EOF
+          ${{ secrets.FIREBASE_SA_KEY }}
           EOF
 
       - name: Build and push Docker image
