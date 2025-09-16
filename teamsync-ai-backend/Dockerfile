@@ -11,7 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your code
 COPY . .
 
-# Expose your AI backend’s port (adjust if needed)
+# Set Google Application Credentials environment variable
+ENV GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-creds.json
+
+# Expose your AI backend's port (adjust if needed)
 EXPOSE 8000
 
 # Default command: run Uvicorn on 0.0.0.0 so it binds inside the container

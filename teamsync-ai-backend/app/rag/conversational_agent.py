@@ -27,15 +27,35 @@ from app.rag.tools.agent_tools import create_agent_tools
 PROJECT_ID = os.getenv("PROJECT_ID")
 CHAT_HISTORY_COLLECTION = "rag_chat_history"
 
-# Initialize Firestore client
-firestore_client = firestore.Client(project=PROJECT_ID)
+# firestore_client = firestore.Client(project=PROJECT_ID)
+# Lazy initialization of Firestore client
+_firestore_client = None
+
+def get_firestore_client():
+    """Get or create Firestore client with lazy initialization"""
+    global _firestore_client
+    if _firestore_client is None:
+        try:
+            _firestore_client = firestore.Client(project=PROJECT_ID)
+        except Exception as e:
+            print(f"Warning: Failed to initialize Firestore client: {e}")
+            print("Chat history will not be persisted")
+            return None
+    return _firestore_client
 
 def get_chat_history(user_id: str) -> FirestoreChatMessageHistory:
     """Get Firebase chat history for a specific user"""
+    client = get_firestore_client()
+    if client is None:
+        # Return a mock chat history if Firestore is not available
+        from langchain.memory import ConversationBufferMemory
+        memory = ConversationBufferMemory(return_messages=True)
+        return memory.chat_memory
+    
     return FirestoreChatMessageHistory(
         session_id=user_id,
         collection=CHAT_HISTORY_COLLECTION,
-        client=firestore_client,
+        client=client,
     )
 
 def get_rag_chain(collection_name: str):
