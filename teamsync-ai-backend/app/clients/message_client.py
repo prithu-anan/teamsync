@@ -5,7 +5,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class MessageClient:
-    def __init__(self, base_url: str = "http://message-management-service:8091"):
+    # def __init__(self, base_url: str = "http://message-management-service:8091"):
+    def __init__(self, base_url: str = "http://api-gateway:8080"):
         self.base_url = base_url
         
     async def get_channel_messages(self, channel_id: int, jwt_token: str) -> List[Dict[str, Any]]:
@@ -14,7 +15,7 @@ class MessageClient:
             headers = {"Authorization": f"Bearer {jwt_token}"}
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/api/channels/{channel_id}/messages",
+                    f"{self.base_url}/channels/{channel_id}/messages",
                     headers=headers
                 )
                 if response.status_code == 200:
@@ -30,7 +31,7 @@ class MessageClient:
             headers = {"Authorization": f"Bearer {jwt_token}"}
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/api/channels/{channel_id}",
+                    f"{self.base_url}/channels/{channel_id}",
                     headers=headers
                 )
                 if response.status_code == 200:

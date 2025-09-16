@@ -5,14 +5,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 class UserClient:
-    def __init__(self, base_url: str = "http://user-management-service:8082"):
+    # def __init__(self, base_url: str = "http://user-management-service:8082"):
+    def __init__(self, base_url: str = "http://api-gateway:8080"):
         self.base_url = base_url
         
     async def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get user by ID"""
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.base_url}/api/users/{user_id}")
+                response = await client.get(f"{self.base_url}/users/{user_id}")
                 if response.status_code == 200:
                     return response.json()["data"]
                 return None
@@ -24,7 +25,7 @@ class UserClient:
         """Get user by email"""
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.base_url}/api/users/email/{email}")
+                response = await client.get(f"{self.base_url}/users/email/{email}")
                 if response.status_code == 200:
                     return response.json()["data"]
                 return None
@@ -36,7 +37,7 @@ class UserClient:
         """Check if user exists"""
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.base_url}/api/users/exists/{user_id}")
+                response = await client.get(f"{self.base_url}/users/exists/{user_id}")
                 if response.status_code == 200:
                     return response.json()["data"]
                 return False
