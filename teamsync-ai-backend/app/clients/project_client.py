@@ -5,8 +5,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ProjectClient:
-    # def __init__(self, base_url: str = "http://project-management-service:8083"):
-    def __init__(self, base_url: str = "http://api-gateway:8080"):
+    def __init__(self, base_url: str = "http://project-management-service:8083"):
+    # def __init__(self, base_url: str = "http://api-gateway:8080"):
         self.base_url = base_url
         
     async def get_project_by_id(self, project_id: int, jwt_token: str) -> Optional[Dict[str, Any]]:
@@ -15,7 +15,7 @@ class ProjectClient:
             headers = {"Authorization": f"Bearer {jwt_token}"}
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/projects/{project_id}",
+                    f"{self.base_url}/api/projects/{project_id}",
                     headers=headers
                 )
                 if response.status_code == 200:
@@ -31,7 +31,7 @@ class ProjectClient:
             headers = {"Authorization": f"Bearer {jwt_token}"}
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/projects/{project_id}/exists",
+                    f"{self.base_url}/api/projects/{project_id}/exists",
                     headers=headers
                 )
                 if response.status_code == 200:

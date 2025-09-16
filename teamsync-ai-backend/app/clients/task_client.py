@@ -5,8 +5,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 class TaskClient:
-    # def __init__(self, base_url: str = "http://task-management-service:8089"):
-    def __init__(self, base_url: str = "http://api-gateway:8080"):
+    def __init__(self, base_url: str = "http://task-management-service:8089"):
+    # def __init__(self, base_url: str = "http://api-gateway:8080"):
         self.base_url = base_url
         
     async def get_task_by_id(self, task_id: int, jwt_token: str) -> Optional[Dict[str, Any]]:
@@ -15,7 +15,7 @@ class TaskClient:
             headers = {"Authorization": f"Bearer {jwt_token}"}
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/tasks/{task_id}",
+                    f"{self.base_url}/api/tasks/{task_id}",
                     headers=headers
                 )
                 if response.status_code == 200:
@@ -31,7 +31,7 @@ class TaskClient:
             headers = {"Authorization": f"Bearer {jwt_token}"}
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/tasks/project/{project_id}",
+                    f"{self.base_url}/api/tasks/project/{project_id}",
                     headers=headers
                 )
                 if response.status_code == 200:
