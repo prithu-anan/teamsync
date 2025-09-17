@@ -1,7 +1,6 @@
 import axios from 'axios';
 
-const AI_API_BASE_URL = 'http://135.235.169.115:8000';
-// const AI_API_BASE_URL = 'http://localhost:8000';
+const AI_API_BASE_URL = `${import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000'}/api`;
 
 export const channel_auto_reply = async ({ channel_id, sender_id }) => {
     try {

@@ -166,6 +166,8 @@ This workflow:
 | `VITE_ZEGO_APP_ID` | Zego video calling app ID | Frontend build |
 | `VITE_ZEGO_SERVER_SECRET` | Zego server secret | Frontend build |
 | `VITE_WEBSOCKET_URL` | WebSocket connection URL | Frontend build |
+| `VITE_API_BASE_URL` | API Gateway base URL (e.g., http://host:8080) | Frontend build |
+| `VITE_AI_BACKEND_URL` | AI backend base URL (e.g., http://host:8000) | Frontend build |
 
 ## 🏗️ Services Architecture
 
