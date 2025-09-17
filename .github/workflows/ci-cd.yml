@@ -506,3 +506,109 @@ jobs:
             
             echo "All services started successfully!"
             docker ps
+            
+            # Wait for services to be ready
+            echo "Waiting for services to initialize..."
+            sleep 30
+            
+            # Health check function
+            health_check() {
+              local service_name=$1
+              local url=$2
+              local max_attempts=30
+              local attempt=1
+              
+              echo "Checking health of $service_name at $url"
+              
+              while [ $attempt -le $max_attempts ]; do
+                if curl -f -s "$url" > /dev/null 2>&1; then
+                  echo "✅ $service_name is healthy!"
+                  return 0
+                else
+                  echo "⏳ Attempt $attempt/$max_attempts: $service_name not ready yet..."
+                  sleep 10
+                  attempt=$((attempt + 1))
+                fi
+              done
+              
+              echo "❌ $service_name failed health check after $max_attempts attempts"
+              return 1
+            }
+            
+            # Perform health checks for all services
+            echo "Starting comprehensive health checks..."
+            
+            # Check API Gateway
+            if ! health_check "API Gateway" "http://localhost:8080/health"; then
+              echo "❌ API Gateway health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Check Auth Service
+            if ! health_check "Auth Service" "http://localhost:8081/actuator/health"; then
+              echo "❌ Auth Service health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Check User Management Service
+            if ! health_check "User Management Service" "http://localhost:8082/actuator/health"; then
+              echo "❌ User Management Service health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Check Project Management Service
+            if ! health_check "Project Management Service" "http://localhost:8083/actuator/health"; then
+              echo "❌ Project Management Service health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Check Task Management Service
+            if ! health_check "Task Management Service" "http://localhost:8089/actuator/health"; then
+              echo "❌ Task Management Service health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Check Feed Management Service
+            if ! health_check "Feed Management Service" "http://localhost:8090/actuator/health"; then
+              echo "❌ Feed Management Service health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Check Message Management Service
+            if ! health_check "Message Management Service" "http://localhost:8091/actuator/health"; then
+              echo "❌ Message Management Service health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Check Notification Service
+            if ! health_check "Notification Service" "http://localhost:8092/actuator/health"; then
+              echo "❌ Notification Service health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Check AI Backend
+            if ! health_check "AI Backend" "http://localhost:8000/api/health"; then
+              echo "❌ AI Backend health check failed - deployment aborted"
+              exit 1
+            fi
+            
+            # Frontend doesn't have a health endpoint, skipping health check
+            echo "ℹ️  Frontend health check skipped (no health endpoint)"
+            
+            echo "🎉 All services are healthy and deployment successful!"
+            
+            # Final status check
+            echo "Final service status:"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            
+            # Create a rollback script for emergency use
+            cat > /tmp/rollback.sh << 'EOF'
+            #!/bin/bash
+            echo "🔄 Rolling back deployment..."
+            docker stop $(docker ps -q) || true
+            docker rm $(docker ps -aq) || true
+            docker network prune -f || true
+            echo "✅ Rollback completed"
+            EOF
+            chmod +x /tmp/rollback.sh
+            echo "📝 Rollback script created at /tmp/rollback.sh"
