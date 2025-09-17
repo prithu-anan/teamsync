@@ -1,0 +1,22 @@
+meta {
+  name: update-reaction-in-feedpost
+  type: http
+  seq: 19
+}
+
+put {
+  url: {{BASE_SERVER}}/feedposts/40/reactions
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "user_id": 16,
+    "reaction_type": "like"
+  }
+}

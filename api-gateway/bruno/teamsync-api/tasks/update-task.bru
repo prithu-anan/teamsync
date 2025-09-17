@@ -1,0 +1,46 @@
+meta {
+  name: update-task
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{BASE_SERVER}}/tasks/73
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+      "title": "ML development",
+      "description": "A chatbox of AI",
+      "status": "backlog",
+      "deadline": "2025-06-01T00:00:00Z",
+      "priority": "medium",
+      "time_estimate": null,
+      "ai_time_estimate": null,
+      "ai_priority": null,
+      "smart_deadline": null,
+      "project_id": 1,
+      "assigned_to": 21,
+      "assigned_by": 21,
+      "assigned_at": "2025-06-04T20:30:29.8745605+06:00",
+      "parent_task_id": null,
+      "tentative_starting_date": null,
+      "subtasks": [],
+      "attachments": null,
+      "status_history": [
+        {
+          "status": "backlog",
+          "changed_by": 21,
+          "changed_at": "2025-06-04T20:30:29.9458821+06:00",
+          "comment": "Task created"
+        }
+      ]
+    }
+  
+}

@@ -4,9 +4,9 @@ TeamSync is a microservices-based platform for team collaboration that provides 
 
 ### Hosted Instance
 
-- API Gateway: `http://135.235.169.115:8080`
-- AI Backend: `http://135.235.169.115:8000`
-- Frontend: `http://135.235.169.115:3000`
+- API Gateway: `http://13.60.242.32:8080`
+- AI Backend: `http://13.60.242.32:8000`
+- Frontend: `http://13.60.242.32:3000`
 
 Note: Replace the IPs with your deployment addresses as needed.
 

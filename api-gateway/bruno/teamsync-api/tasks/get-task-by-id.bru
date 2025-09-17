@@ -1,0 +1,80 @@
+meta {
+  name: get-task-by-id
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_SERVER}}/tasks/2
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+docs {
+  **Example python code**
+  
+  ```python
+  import http.client
+  
+  conn = http.client.HTTPConnection("localhost:8080")
+  
+  # this jwt is needed to make backend api calls
+  
+  headers = { 'authorization': "Bearer eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NTE4MDEwMTksImV4cCI6MTc1MTgxMzAxOSwiZW1haWwiOiJzYWRhdEBnbWFpbC5jb20iLCJhdXRob3JpdGllcyI6IiJ9.MeTf5MiRPoY4jQUZofYoEiSp2rmlSrBRTsxyMcDV744" }
+  
+  // here 1 represents the user id coming from frontend
+  conn.request("GET", "/tasks/1", headers=headers)
+  
+  res = conn.getresponse()
+  data = res.read()
+  
+  print(data.decode("utf-8"))
+  ```
+  
+  response on success:
+  
+  ```json
+  {
+    "code": 200,
+    "status": "OK",
+    "message": "Task retrieved successfully",
+    "data": {
+      "id": 1,
+      "title": "Implement Login Page",
+      "description": "Create a secure login page with OAuth",
+      "status": "in_progress",
+      "deadline": "2025-02-01T11:00:00Z",
+      "priority": "high",
+      "time_estimate": "4h",
+      "ai_time_estimate": "3h",
+      "ai_priority": "high",
+      "smart_deadline": "2025-01-31T11:00:00Z",
+      "project_id": 1,
+      "assigned_to": 1,
+      "assigned_by": 1,
+      "assigned_at": "2025-01-01T02:00:00Z",
+      "parent_task_id": null,
+      "tentative_starting_date": "2025-01-25",
+      "subtasks": [
+        6,
+        11
+      ],
+      "attachments": [
+        "login_design.png"
+      ],
+      "status_history": [
+        {
+          "status": "in_progress",
+          "changed_by": 1,
+          "changed_at": "2025-01-25T02:00:00Z",
+          "comment": "Started login page implementation"
+        }
+      ]
+    }
+  }
+  ```
+}

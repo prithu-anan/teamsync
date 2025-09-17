@@ -1,0 +1,15 @@
+meta {
+  name: get-all-tasks-specific-project
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{BASE_SERVER}}/projects/1/tasks
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

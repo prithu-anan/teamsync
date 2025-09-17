@@ -1,0 +1,25 @@
+meta {
+  name: create-event
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_SERVER}}/events
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "title": "Team Birthday Party",
+    "description": "Celebrating Ahon's birthday",
+    "type": "Birthday",
+    "date": "2025-06-04",
+    "participant_ids": [1, 12, 13]
+  }
+}

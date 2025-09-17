@@ -1,0 +1,19 @@
+meta {
+  name: get-user-by-id
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{BASE_SERVER}}/users/2
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+settings {
+  encodeUrl: true
+}

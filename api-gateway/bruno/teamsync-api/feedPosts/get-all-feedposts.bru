@@ -1,0 +1,96 @@
+meta {
+  name: get-all-feedposts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_SERVER}}/feedposts?page=1&limit=4&type=event
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  limit: 4
+  type: event
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+docs {
+  # Feed Post Pagination API
+  
+  ## Overview
+  The feed post API now supports pagination with filtering and sorting capabilities. This allows for efficient retrieval of large datasets with customizable page sizes and sorting options.
+  
+  ## Endpoint
+  ```
+  GET /feedposts
+  ```
+  
+  ## Request Parameters
+  
+  | Parameter | Type   | Description                        | Default     | Required |
+  |-----------|--------|------------------------------------|-------------|----------|
+  | `page`    | Int    | Which page to fetch                | 1           | No       |
+  | `limit`   | Int    | Number of posts per page           | 20          | No       |
+  | `sortBy`  | String | Field to sort by                   | `createdAt` | No       |
+  | `order`   | String | Sort order (`asc` or `desc`)       | `desc`      | No       |
+  | `type`    | String | Filter feedpost by type            | text        | No       |
+  
+  ### Valid Sort Fields
+  - `createdAt` - Sort by creation date (default)
+  - `eventDate` - Sort by event date
+  
+  ### Valid Sort Orders
+  - `asc` - Ascending order
+  - `desc` - Descending order (default)
+  
+  ### Valid Feed Post Types
+  - `text` - Text posts
+  - `photo` - Photo posts
+  - `event` - Event posts
+  - `appreciation` - Appreciation posts
+  - `poll` - Poll posts
+  - `birthday` - Birthday posts
+  - `highlight` - Highlight posts
+  
+  ## Metadata Fields
+  
+  | Field           | Type    | Description                                    |
+  |-----------------|---------|------------------------------------------------|
+  | `currentPage`   | Int     | Current page number (1-based)                  |
+  | `totalPages`    | Int     | Total number of pages                          |
+  | `totalElements` | Long    | Total number of feed posts                     |
+  | `pageSize`      | Int     | Number of posts per page                       |
+  | `hasNext`       | Boolean | Whether there is a next page                   |
+  | `hasPrevious`   | Boolean | Whether there is a previous page               |
+  | `sortBy`        | String  | Field used for sorting                          |
+  | `sortOrder`     | String  | Sort order used (`asc` or `desc`)              |
+  | `filterType`    | String  | Feed post type filter applied (if any)         |
+  
+  ## Examples
+  
+  ### Basic Pagination
+  ```
+  GET /feedposts?page=1&limit=10
+  ```
+  
+  ### With Sorting
+  ```
+  GET /feedposts?page=2&limit=15&sortBy=content&order=asc
+  ```
+  
+  ### With Type Filter
+  ```
+  GET /feedposts?type=text&page=1&limit=20
+  ```
+  
+  ### Complete Example
+  ```
+  GET /feedposts?page=3&limit=10&sortBy=createdAt&order=desc&type=poll
+  ```
+}

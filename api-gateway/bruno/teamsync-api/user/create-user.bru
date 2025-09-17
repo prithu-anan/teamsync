@@ -1,0 +1,23 @@
+meta {
+  name: create-user
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_SERVER}}/users
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "name": "new",
+    "email": "new@gmail.com",
+    "password": "123"
+  }
+}

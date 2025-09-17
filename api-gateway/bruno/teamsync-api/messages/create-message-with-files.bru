@@ -1,0 +1,39 @@
+meta {
+  name: create-message-with-files
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{BASE_SERVER}}/channels/files?channelId=1
+  body: multipartForm
+  auth: inherit
+}
+
+params:query {
+  channelId: 1
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:multipart-form {
+  files: @file(/home/suhas/workspace/academics/dhcp_spoofing/report/README.md)
+}
+
+docs {
+  ## This endpoint only supports sending files, for sending text content you should still use the other api
+  
+  **query params**
+  
+  you should give either channelId or recipientId
+  
+  channelId : if given, the message will be sent to channel
+  
+  recipientId: if given, the message will be sent to dm
+  
+  you can send threadParentId with any of them,
+  
+  threadParentId(optional): the message will be under a thread
+}

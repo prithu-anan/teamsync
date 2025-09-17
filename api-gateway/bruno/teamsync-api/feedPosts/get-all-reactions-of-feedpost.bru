@@ -1,0 +1,15 @@
+meta {
+  name: get-all-reactions-of-feedpost
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{BASE_SERVER}}/feedposts/4/reactions
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

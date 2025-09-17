@@ -1,0 +1,15 @@
+meta {
+  name: get-tasks-for-kanban-view
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{BASE_SERVER}}/projects/3/kanban
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

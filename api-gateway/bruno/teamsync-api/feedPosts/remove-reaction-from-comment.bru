@@ -1,0 +1,20 @@
+meta {
+  name: remove-reaction-from-comment
+  type: http
+  seq: 16
+}
+
+delete {
+  url: {{BASE_SERVER}}/feedposts/40/comments/101/reactions?user_id=22&reaction_type=like
+  body: none
+  auth: inherit
+}
+
+params:query {
+  user_id: 22
+  reaction_type: like
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

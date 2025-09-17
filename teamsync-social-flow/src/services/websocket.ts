@@ -3,7 +3,7 @@ import SockJS from 'sockjs-client';
 import type { Message } from '@/types/messages';
 
 export interface WebSocketMessage {
-  type?: 'CREATE' | 'UPDATE' | 'DELETE';
+  type?: 'CREATE' | 'UPDATE' | 'DELETE' | 'ERROR';
   messageId?: string;
   channelId?: string;
   recipientId?: string;

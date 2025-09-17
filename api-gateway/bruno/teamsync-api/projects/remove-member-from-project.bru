@@ -1,0 +1,15 @@
+meta {
+  name: remove-member-from-project
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{BASE_SERVER}}/projects/105/members/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

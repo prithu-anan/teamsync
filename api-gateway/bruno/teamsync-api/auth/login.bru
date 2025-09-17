@@ -1,0 +1,18 @@
+meta {
+  name: login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_SERVER}}/auth/login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email":"rafi@gmail.com",
+    "password":"123"
+  }
+}

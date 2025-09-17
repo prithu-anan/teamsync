@@ -1,0 +1,15 @@
+meta {
+  name: get-all-events
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{BASE_SERVER}}/events
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

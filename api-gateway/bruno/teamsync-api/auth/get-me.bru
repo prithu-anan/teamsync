@@ -1,0 +1,53 @@
+meta {
+  name: get-me
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_SERVER}}/auth/me
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+docs {
+  **Example python code**
+  
+  ```json
+  import http.client
+  
+  conn = http.client.HTTPConnection("localhost:8080")
+  # jwt should be provided to make backend api calls
+  headers = { 'authorization': "Bearer eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3NTE4MDEwMTksImV4cCI6MTc1MTgxMzAxOSwiZW1haWwiOiJzYWRhdEBnbWFpbC5jb20iLCJhdXRob3JpdGllcyI6IiJ9.MeTf5MiRPoY4jQUZofYoEiSp2rmlSrBRTsxyMcDV744" }
+  
+  conn.request("GET", "/auth/me", headers=headers)
+  
+  res = conn.getresponse()
+  data = res.read()
+  
+  print(data.decode("utf-8"))
+  ```
+  
+  response on success
+  ```json
+  {
+    "code": 200,
+    "status": "OK",
+    "message": "Current user retrieved successfully",
+    "data": {
+      "id": 1,
+      "name": "sadat",
+      "email": "sadat@gmail.com",
+      "profilePicture": null,
+      "designation": null,
+      "birthdate": null,
+      "joinDate": null,
+      "predictedBurnoutRisk": null
+    }
+  }
+  ```
+}

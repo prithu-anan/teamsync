@@ -1,0 +1,21 @@
+meta {
+  name: logout
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{BASE_SERVER}}/auth/logout
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "refreshToken": "Ipaty5T_PfJgtVawFBuIReE8A6nzRfje2RXRdELzLo0"
+  }
+}

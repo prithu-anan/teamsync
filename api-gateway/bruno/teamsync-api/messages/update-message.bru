@@ -1,0 +1,23 @@
+meta {
+  name: update-message
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_SERVER}}/channels/1/messages/100
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "channel_id": 1,
+    "recipient_id": 9,
+    "content": "Update module"
+  }
+}

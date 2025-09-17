@@ -1,0 +1,22 @@
+meta {
+  name: add-reply-to-a-comment
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{BASE_SERVER}}/feedposts/40/comments/101/replies
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "content": "This is a reply to the comment", 
+    "author_id": 2
+  }
+}

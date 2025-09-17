@@ -1,0 +1,15 @@
+meta {
+  name: get-pollVotes-by-id
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{BASE_SERVER}}/pollvotes/14
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

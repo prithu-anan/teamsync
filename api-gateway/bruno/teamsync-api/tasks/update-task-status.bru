@@ -1,0 +1,26 @@
+meta {
+  name: update-task-status
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{BASE_SERVER}}/tasks/status/13
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "status":"completed",
+    "comment":"children completed, dekhi to ebar"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

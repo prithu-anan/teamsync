@@ -1,0 +1,26 @@
+meta {
+  name: update-specific-comment
+  type: http
+  seq: 12
+}
+
+put {
+  url: {{BASE_SERVER}}/feedposts/40/comments/101
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "post_id": 40,
+    "author_id": 13,
+    "content": "Vote for logo",
+    "timestamp": "2025-06-06T10:58:01.002Z",
+    "parent_comment_id": null,
+    "reply_count": 3
+  }
+}

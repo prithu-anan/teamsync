@@ -1,0 +1,15 @@
+meta {
+  name: get-all-replies-to-a-comment
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{BASE_SERVER}}/feedposts/40/comments/101/replies
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

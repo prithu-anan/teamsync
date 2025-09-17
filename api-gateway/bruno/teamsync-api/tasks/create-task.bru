@@ -1,0 +1,28 @@
+meta {
+  name: create-task
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{BASE_SERVER}}/tasks
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "title": "A task can only be completed after its children",
+    "description": "A chatbox of AI",
+    "status": "backlog",
+    "assigned_to": 7,
+    "deadline": "2025-09-01T00:00:00Z",
+    "priority": "medium",
+    "parent_task_id": 13,
+    "project_id":3
+  }
+}

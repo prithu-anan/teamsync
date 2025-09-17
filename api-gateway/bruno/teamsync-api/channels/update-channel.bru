@@ -1,0 +1,27 @@
+meta {
+  name: update-channel
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{BASE_SERVER}}/channels/106
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "name": "Ai backend",
+    "type": "group",
+    "project_id": 3,
+    "members": [
+      1,2,5,7,9
+    ]
+  }
+  
+}

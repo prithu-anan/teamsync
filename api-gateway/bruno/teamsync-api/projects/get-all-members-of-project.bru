@@ -1,0 +1,15 @@
+meta {
+  name: get-all-members-of-project
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{BASE_SERVER}}/projects/3/members
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

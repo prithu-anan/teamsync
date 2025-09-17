@@ -1,0 +1,24 @@
+meta {
+  name: update-appriciations
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{BASE_SERVER}}/appreciations/103
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "from_user_id": 1,
+    "to_user_id": 2,
+    "message": "Good job, well done",
+    "timestamp": "2025-06-04T16:07:27.211Z"
+  }
+}

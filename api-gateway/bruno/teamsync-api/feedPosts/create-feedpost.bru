@@ -1,0 +1,70 @@
+meta {
+  name: create-feedpost
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_SERVER}}/feedposts
+  body: multipartForm
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:multipart-form {
+  feedPost: {"type": "poll", "content": "This is a test feed post with uploaded files", "event_date": "2024-12-25", "poll_options": ["Option 1", "Option 2"]} @contentType(application/json)
+  files: @file(/home/suhas/Pictures/potu.jpg)
+  files: @file(/home/suhas/Pictures/suhas.jpg)
+}
+
+docs {
+  ## Create Feed Post with File Upload
+  
+  This endpoint creates a new feed post with optional file uploads. Files are uploaded to Azure Blob Storage and their URLs are automatically added to the feed post's mediaUrls field.
+  
+  **Request Body (multipart/form-data)**
+  
+  - `feedPost` (required): JSON string containing the feed post data
+    - `type` (required): Feed post type (text, photo, event, appreciation, poll, birthday, highlight)
+    - `content` (required): Post content
+    - `event_date` (optional): Event date for event type posts
+    - `poll_options` (optional): Array of poll options for poll type posts
+  
+  - `files` (optional): One or more files to upload
+    - Supported file types: Images
+    - Files are uploaded to Azure Blob Storage
+    - Secure URLs with SAS tokens are generated
+    - URLs are automatically added to the feed post's mediaUrls field
+  
+  **Examples**
+  
+  Text post with images:
+  ```json
+  {
+    "type": "text",
+    "content": "Check out these amazing images!"
+  }
+  ```
+  
+  Event post:
+  ```json
+  {
+    "type": "event",
+    "content": "Team meeting tomorrow",
+    "event_date": "2024-12-26"
+  }
+  ```
+  
+  Poll post:
+  ```json
+  {
+    "type": "poll",
+    "content": "What's your favorite programming language?",
+    "poll_options": ["Java", "Python", "JavaScript", "Go"]
+  }
+  ```
+  **The poll_options field is only valid if the type if `poll`**
+}

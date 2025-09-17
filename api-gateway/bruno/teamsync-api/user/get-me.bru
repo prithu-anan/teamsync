@@ -1,0 +1,36 @@
+meta {
+  name: get-me
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{BASE_SERVER}}/auth/me
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+docs {
+  response on success
+  ```json
+  {
+    "code": 200,
+    "status": "OK",
+    "message": "Current user retrieved successfully",
+    "data": {
+      "id": 1,
+      "name": "sadat",
+      "email": "sadat@gmail.com",
+      "profilePicture": null,
+      "designation": null,
+      "birthdate": null,
+      "joinDate": null,
+      "predictedBurnoutRisk": null
+    }
+  }
+  ```
+}

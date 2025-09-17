@@ -1,0 +1,23 @@
+meta {
+  name: get-tasks-assigned-to-user
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{BASE_SERVER}}/tasks/user/assigned
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  returns the task the current user has been assigned to.
+}

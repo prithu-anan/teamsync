@@ -1,0 +1,15 @@
+meta {
+  name: delete-specific-commenr
+  type: http
+  seq: 13
+}
+
+delete {
+  url: {{BASE_SERVER}}/feedposts/1/comments/100
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

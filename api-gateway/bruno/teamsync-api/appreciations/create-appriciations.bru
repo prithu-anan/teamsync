@@ -1,0 +1,22 @@
+meta {
+  name: create-appriciations
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{BASE_SERVER}}/appreciations
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "to_user_id": 7,
+    "message": "Well Job"
+  }
+}

@@ -1,0 +1,23 @@
+meta {
+  name: get-user-involved-tasks
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{BASE_SERVER}}/tasks/user/involved
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  returns the task the current user is part of,either assigned by him or assigned to him.
+}

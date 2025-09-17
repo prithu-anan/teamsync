@@ -1,0 +1,28 @@
+meta {
+  name: update-user
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{BASE_SERVER}}/users
+  body: multipartForm
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:multipart-form {
+  user: {"name":"Rafiul Islam"} @contentType(application/json)
+  file: @file(/home/suhas/Pictures/suhas.jpg)
+}
+
+docs {
+  the following attributes are supported in `user` field-
+  1. name (required)
+  2. birthdate (optional) must be in the format YYYY-MM-DD
+  
+  `file` field: only image is supported
+}

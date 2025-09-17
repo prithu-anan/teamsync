@@ -1,0 +1,27 @@
+meta {
+  name: create-feedpost copy
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{BASE_SERVER}}/feedposts
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "type": "poll",
+    "content": "which one of them is best for backend?",
+    "media_urls": null,
+    "event_date": "2025-06-05",
+    "poll_options":[
+      "springboot","express","next","django"
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+meta {
+  name: update-event
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{BASE_SERVER}}/events/107
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "title": "Updated Birthday Party",
+    "description": "Updated description", 
+    "type": "Birthday",
+    "date": "2025-06-04",
+    "participants": [1, 2, 3, 4]
+  }
+}

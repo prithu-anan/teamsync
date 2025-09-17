@@ -1,0 +1,32 @@
+meta {
+  name: update-designation
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{BASE_SERVER}}/users/designation/3
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "designation":"manager"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  This endpoint is authorized for user with manager designation only.
+  
+  `designation` can only be manager or employee, anything other than that will get validation error.
+  
+}

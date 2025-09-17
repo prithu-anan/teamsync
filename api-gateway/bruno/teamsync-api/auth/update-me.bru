@@ -1,0 +1,23 @@
+meta {
+  name: update-me
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{BASE_SERVER}}/auth/me
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "name": "Riyad",
+    "profile_picture": null,
+    "designation": "Backend Engineer"
+  }
+}

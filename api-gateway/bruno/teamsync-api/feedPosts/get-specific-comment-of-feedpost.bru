@@ -1,0 +1,15 @@
+meta {
+  name: get-specific-comment-of-feedpost
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{BASE_SERVER}}/feedposts/40/comments/101
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

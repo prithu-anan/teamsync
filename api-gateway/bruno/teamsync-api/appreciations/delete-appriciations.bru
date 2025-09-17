@@ -1,0 +1,15 @@
+meta {
+  name: delete-appriciations
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{BASE_SERVER}}/appreciations/103
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

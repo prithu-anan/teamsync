@@ -1,0 +1,28 @@
+meta {
+  name: create-new-channel
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_SERVER}}/channels
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "name": "Backend dev",
+    "type": "group",
+    "project_id": 5,
+    "member_ids": [
+      1,
+      2,
+      5
+    ]
+  }
+}

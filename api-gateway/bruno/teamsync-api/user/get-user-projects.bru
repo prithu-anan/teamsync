@@ -1,0 +1,19 @@
+meta {
+  name: get-user-projects
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{BASE_SERVER}}/users/projects
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+settings {
+  encodeUrl: true
+}

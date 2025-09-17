@@ -1,0 +1,15 @@
+meta {
+  name: delete-feedpost
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{BASE_SERVER}}/feedposts/103
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}

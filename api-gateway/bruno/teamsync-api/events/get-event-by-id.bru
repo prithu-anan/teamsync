@@ -1,0 +1,15 @@
+meta {
+  name: get-event-by-id
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_SERVER}}/events/97
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
