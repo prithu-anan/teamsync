@@ -108,6 +108,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+          
+      - name: Clean up build cache
+        run: |
+          echo "Cleaning up build cache for ${{ matrix.service.name }}..."
+          docker builder prune -f
 
   build-ai-backend:
     name: Build AI Backend
@@ -171,6 +176,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+          
+      - name: Clean up build cache
+        run: |
+          echo "Cleaning up build cache for AI backend..."
+          docker builder prune -f
 
   build-frontend:
     name: Build Frontend
@@ -230,6 +240,11 @@ jobs:
             VITE_WEBSOCKET_URL=${{ secrets.VITE_WEBSOCKET_URL }}
             VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
             VITE_AI_BACKEND_URL=${{ secrets.VITE_AI_BACKEND_URL }}
+            
+      - name: Clean up build cache
+        run: |
+          echo "Cleaning up build cache for frontend..."
+          docker builder prune -f
 
   deploy:
     name: Deploy to VM
@@ -248,18 +263,57 @@ jobs:
           script: |
             set -eux
             
-            # Comprehensive cleanup of all existing containers and networks
+            # Comprehensive cleanup of all existing containers, images, volumes, and networks
             echo "Performing comprehensive cleanup..."
             
             # Stop and remove all containers
             echo "Stopping all running containers..."
             docker stop $(docker ps -q) || true
+            
+            # Backup database data before cleanup (optional - uncomment if needed)
+            # echo "Creating database backups..."
+            # mkdir -p /tmp/db-backups
+            # docker run --rm -v auth-postgres_data:/data -v /tmp/db-backups:/backup alpine tar czf /backup/auth-db-$(date +%Y%m%d-%H%M%S).tar.gz -C /data . || true
+            # docker run --rm -v user-management-postgres_data:/data -v /tmp/db-backups:/backup alpine tar czf /backup/user-db-$(date +%Y%m%d-%H%M%S).tar.gz -C /data . || true
+            # docker run --rm -v project-management-postgres_data:/data -v /tmp/db-backups:/backup alpine tar czf /backup/project-db-$(date +%Y%m%d-%H%M%S).tar.gz -C /data . || true
+            # docker run --rm -v task-management-postgres_data:/data -v /tmp/db-backups:/backup alpine tar czf /backup/task-db-$(date +%Y%m%d-%H%M%S).tar.gz -C /data . || true
+            # docker run --rm -v feed-management-postgres_data:/data -v /tmp/db-backups:/backup alpine tar czf /backup/feed-db-$(date +%Y%m%d-%H%M%S).tar.gz -C /data . || true
+            # docker run --rm -v message-management-postgres_data:/data -v /tmp/db-backups:/backup alpine tar czf /backup/message-db-$(date +%Y%m%d-%H%M%S).tar.gz -C /data . || true
+            # docker run --rm -v notification-postgres_data:/data -v /tmp/db-backups:/backup alpine tar czf /backup/notification-db-$(date +%Y%m%d-%H%M%S).tar.gz -C /data . || true
+            
             docker rm $(docker ps -aq) || true
+            
+            # Remove all unused images (keep latest 3 versions of each service)
+            echo "Cleaning up old Docker images..."
+            docker image prune -a -f || true
+            
+            # Smart volume cleanup - only remove truly unused volumes
+            echo "Performing smart volume cleanup..."
+            
+            # List all volumes before cleanup
+            echo "Current volumes:"
+            docker volume ls
+            
+            # Only remove volumes that are not associated with any container
+            echo "Removing only unused volumes (not attached to any container)..."
+            docker volume prune -f || true
+            
+            # Show remaining volumes
+            echo "Remaining volumes after cleanup:"
+            docker volume ls
+            
+            # Remove build cache to free up space
+            echo "Cleaning up Docker build cache..."
+            docker builder prune -a -f || true
             
             # Remove all networks (except default ones)
             echo "Cleaning up networks..."
             docker network prune -f || true
             docker network rm teamsync_network || true
+            
+            # Show disk usage before deployment
+            echo "Disk usage before deployment:"
+            df -h
             
             # Create fresh network
             echo "Creating fresh network..."
@@ -283,7 +337,7 @@ jobs:
             # Start database services first
             echo "Starting database services..."
             
-            # Auth Service Database
+            # Auth Service Database (with persistent volume)
             docker run -d \
               --name auth-postgres \
               --network teamsync_network \
@@ -291,9 +345,10 @@ jobs:
               -e POSTGRES_USER=postgres \
               -e POSTGRES_PASSWORD=postgres \
               -p 5431:5432 \
+              -v auth-postgres_data:/var/lib/postgresql/data \
               postgres:15
             
-            # User Management Database
+            # User Management Database (with persistent volume)
             docker run -d \
               --name user-management-postgres \
               --network teamsync_network \
@@ -301,9 +356,10 @@ jobs:
               -e POSTGRES_USER=postgres \
               -e POSTGRES_PASSWORD=postgres \
               -p 5432:5432 \
+              -v user-management-postgres_data:/var/lib/postgresql/data \
               postgres:15
             
-            # Project Management Database
+            # Project Management Database (with persistent volume)
             docker run -d \
               --name project-management-postgres \
               --network teamsync_network \
@@ -311,9 +367,10 @@ jobs:
               -e POSTGRES_USER=postgres \
               -e POSTGRES_PASSWORD=postgres \
               -p 5433:5432 \
+              -v project-management-postgres_data:/var/lib/postgresql/data \
               postgres:15
             
-            # Task Management Database
+            # Task Management Database (with persistent volume)
             docker run -d \
               --name task-management-postgres \
               --network teamsync_network \
@@ -321,9 +378,10 @@ jobs:
               -e POSTGRES_USER=postgres \
               -e POSTGRES_PASSWORD=postgres \
               -p 5434:5432 \
+              -v task-management-postgres_data:/var/lib/postgresql/data \
               postgres:15
             
-            # Feed Management Database
+            # Feed Management Database (with persistent volume)
             docker run -d \
               --name feed-management-postgres \
               --network teamsync_network \
@@ -331,9 +389,10 @@ jobs:
               -e POSTGRES_USER=postgres \
               -e POSTGRES_PASSWORD=postgres \
               -p 5435:5432 \
+              -v feed-management-postgres_data:/var/lib/postgresql/data \
               postgres:15
             
-            # Message Management Database
+            # Message Management Database (with persistent volume)
             docker run -d \
               --name message-management-postgres \
               --network teamsync_network \
@@ -341,14 +400,16 @@ jobs:
               -e POSTGRES_USER=postgres \
               -e POSTGRES_PASSWORD=postgres \
               -p 5436:5432 \
+              -v message-management-postgres_data:/var/lib/postgresql/data \
               postgres:15
             
-            # Notification Service MongoDB
+            # Notification Service MongoDB (with persistent volume)
             docker run -d \
               --name notification-mongo \
               --network teamsync_network \
               -e MONGO_INITDB_DATABASE=notification_db \
               -p 27017:27017 \
+              -v notification-mongo_data:/data/db \
               mongo:7.0
             
             # Kafka Infrastructure
@@ -602,6 +663,37 @@ jobs:
             # Final status check
             echo "Final service status:"
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            
+            # Show final disk usage and Docker space usage
+            echo "Disk usage after deployment:"
+            df -h
+            echo "Docker system space usage:"
+            docker system df
+            
+            # Create a comprehensive cleanup script for emergency use
+            cat > /tmp/emergency_cleanup.sh << 'EOF'
+            #!/bin/bash
+            echo "🚨 Emergency cleanup script - WARNING: This will delete ALL Docker data!"
+            echo "Stopping all containers..."
+            docker stop $(docker ps -q) || true
+            echo "Removing all containers..."
+            docker rm $(docker ps -aq) || true
+            echo "Removing all images..."
+            docker rmi $(docker images -q) || true
+            echo "Removing all volumes..."
+            docker volume rm $(docker volume ls -q) || true
+            echo "Removing all networks..."
+            docker network rm $(docker network ls -q) || true
+            echo "Cleaning build cache..."
+            docker builder prune -a -f || true
+            echo "System prune..."
+            docker system prune -a -f --volumes || true
+            echo "✅ Emergency cleanup completed"
+            echo "Disk usage after cleanup:"
+            df -h
+            EOF
+            chmod +x /tmp/emergency_cleanup.sh
+            echo "📝 Emergency cleanup script created at /tmp/emergency_cleanup.sh"
             
             # Create a rollback script for emergency use
             cat > /tmp/rollback.sh << 'EOF'
