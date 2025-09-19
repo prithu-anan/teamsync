@@ -10,7 +10,7 @@ INSERT INTO users (
     name, email, password, profile_picture_url, profile_picture_data, designation, birthdate, join_date, predicted_burnout_risk
 ) VALUES
     ('miraj', 'miraj@gmail.com', '$2a$10$6IZZ9wGm9DNsGw0ToOlBAucOJAHfjGNZtGv888YpOsShGJy116C02', NULL, NULL, NULL, NULL, NULL, NULL),
-    ('rafi', 'rafi@gmail.com', '$2a$10$gB.MrtYifbVcdC8e1XT1zObwEXbPUxiLv1D44.gCfZELw8tilp2uS', NULL, NULL, NULL, NULL, NULL, NULL),
+    ('rafi', 'rafi@gmail.com', '$2a$10$gB.MrtYifbVcdC8e1XT1zObwEXbPUxiLv1D44.gCfZELw8tilp2uS', NULL, NULL, 'manager', NULL, NULL, NULL),
     ('anik', 'anik@gmail.com', '$2a$10$KPMiAHRKda5gEZnErIevw.6HiDVHiSNHxfG5Jb1HSEZRH8ppFwapy', NULL, NULL, NULL, NULL, NULL, NULL),
     ('sawdho', 'sawdho@gmail.com', '$2a$10$8x9l2PA6mfqA2K3KovyfV.RpHKmv6LZX5qakQTZSw/gMvOVlP5/ti', NULL, NULL, NULL, NULL, NULL, NULL),
     ('joy', 'joy@gmail.com', '$2a$10$vvpGKDciFbTOKGmDlTbaEe2KDXf9Cs6O5pThZKodrjkauV4LcxTM.', NULL, NULL, NULL, NULL, NULL, NULL),
