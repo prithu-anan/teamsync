@@ -15,7 +15,7 @@ from app.clients.auth_client import AuthClient  # Add this import
 
 # Get base server URL from environment
 BASE_SERVER_URL = os.getenv("BASE_SERVER_URL", "http://localhost:8080")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://135.235.169.115:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://13.60.242.32:3000")
 
 class GetCurrentUserInput(BaseModel):
     """Input for getting current user information"""
