@@ -136,10 +136,12 @@ const MessagesContent = () => {
   // Get WebSocket context
   const { 
     isConnected: webSocketConnected, 
+    connectionStatus,
+    retryCount,
     subscribeToChannel, 
     subscribeToUser, 
     unsubscribeFromChannel, 
-    unsubscribeFromUser 
+    unsubscribeFromUser
   } = useWebSocketContext();
 
   // Handle call invitations
@@ -215,9 +217,8 @@ const MessagesContent = () => {
     }
 
     if (data.id || data.messageId) {
-      // Use user info from WebSocket message if available, otherwise fall back to users state lookup
+      // Use user info from WebSocket message if available, otherwise use fallback
       const senderId = data.sender_id?.toString() || '';
-      const foundUser = users.find(u => u.id?.toString() === senderId);
       
       const message: Message = {
         id: data.id?.toString() || data.messageId?.toString() || '',
@@ -227,8 +228,8 @@ const MessagesContent = () => {
         content: data.content || '',
         timestamp: data.timestamp || new Date().toISOString(),
         thread_parent_id: data.thread_parent_id?.toString() || null,
-        userName: data.sender_name || foundUser?.name || 'Unknown User',
-        userAvatar: data.sender_avatar || foundUser?.avatar || '/placeholder.svg',
+        userName: data.sender_name || 'Unknown User',
+        userAvatar: data.sender_avatar || '/placeholder.svg',
         file_url: data.file_url || null,
         file_type: data.file_type || null,
         fileUrl: data.file_url || data.fileUrl || null,
@@ -243,7 +244,7 @@ const MessagesContent = () => {
         handleWebSocketMessage(message);
       }
     }
-  }, [handleWebSocketMessage, handleWebSocketMessageUpdate, handleWebSocketMessageDeletion, users]);
+  }, [handleWebSocketMessage, handleWebSocketMessageUpdate, handleWebSocketMessageDeletion]);
 
   // Subscribe to WebSocket messages when selectedChannel changes
   useEffect(() => {
@@ -574,6 +575,9 @@ const MessagesContent = () => {
   useEffect(() => {
     fetchChannels();
   }, []);
+
+  // WebSocket automatically handles cross-device synchronization
+  // No need for manual sync requests
 
   // Load pinned messages when users are available and channel is selected
   useEffect(() => {
@@ -996,8 +1000,12 @@ const MessagesContent = () => {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold">Messages</h2>
-                <div className={`w-2 h-2 rounded-full ${webSocketConnected ? 'bg-green-500' : 'bg-red-500'}`} 
-                     title={webSocketConnected ? 'Connected' : 'Disconnected'} />
+                <div className={`w-2 h-2 rounded-full ${
+                  connectionStatus === 'connected' ? 'bg-green-500' : 
+                  connectionStatus === 'connecting' ? 'bg-yellow-500' : 
+                  connectionStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'
+                }`} 
+                     title={`WebSocket: ${connectionStatus}${retryCount > 0 ? ` (retry ${retryCount})` : ''}`} />
               </div>
               <Button variant="ghost" size="icon" onClick={() => setShowNewConversationDialog(true)}>
                 <Plus className="h-4 w-4" />

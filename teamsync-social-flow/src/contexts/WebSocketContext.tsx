@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { webSocketService, WebSocketMessage } from '@/services/websocket';
 import type { Message } from '@/types/messages';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface WebSocketContextType {
   isConnected: boolean;
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+  retryCount: number;
   onMessageReceived: (message: Message) => void;
   onMessageUpdated: (message: Message) => void;
   onMessageDeleted: (messageId: string) => void;
@@ -28,38 +31,97 @@ interface WebSocketProviderProps {
 }
 
 export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
+  const { user, isAuthenticated } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [messageHandlers, setMessageHandlers] = useState<Map<string, (message: WebSocketMessage) => void>>(new Map());
+  const [connectionAttempted, setConnectionAttempted] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [maxRetries] = useState(3);
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
 
-  // Connect to WebSocket when provider mounts
+  // WebSocket handles all cross-device communication automatically
+  // No need for BroadcastChannel since it only works within same browser
+
+  // Connect to WebSocket when user is authenticated
   useEffect(() => {
-    const connectWebSocket = async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const connectWebSocket = async (retryAttempt = 0) => {
       try {
+        console.log(`Attempting WebSocket connection for authenticated user: ${user?.email} (attempt ${retryAttempt + 1})`);
+        setConnectionAttempted(true);
+        setConnectionStatus('connecting');
+        setRetryCount(retryAttempt);
+        
         await webSocketService.connect();
         console.log('WebSocket connected successfully');
         setIsConnected(true);
+        setConnectionStatus('connected');
+        setRetryCount(0); // Reset retry count on successful connection
       } catch (error) {
-        console.warn('WebSocket connection failed, continuing without real-time updates:', error);
+        console.warn(`WebSocket connection failed (attempt ${retryAttempt + 1}):`, error);
         setIsConnected(false);
+        setConnectionStatus('error');
+        
+        // Retry logic
+        if (retryAttempt < maxRetries) {
+          const delay = Math.pow(2, retryAttempt) * 1000; // Exponential backoff: 1s, 2s, 4s
+          console.log(`Retrying WebSocket connection in ${delay}ms...`);
+          setRetryCount(retryAttempt + 1);
+          setTimeout(() => {
+            connectWebSocket(retryAttempt + 1);
+          }, delay);
+        } else {
+          console.error('Max WebSocket connection retries reached');
+          setConnectionAttempted(false);
+          setRetryCount(0);
+          setConnectionStatus('error');
+        }
       }
     };
 
-    connectWebSocket();
+    // Only attempt connection if not already connected
+    if (!isConnected && !connectionAttempted) {
+      connectWebSocket();
+    }
 
     // Listen for connection changes
     const handleConnectionChange = (connected: boolean) => {
       setIsConnected(connected);
+      if (connected) {
+        setRetryCount(0); // Reset retry count when connection is established
+        setConnectionStatus('connected');
+      } else {
+        setConnectionStatus('disconnected');
+      }
     };
 
     webSocketService.onConnectionChange(handleConnectionChange);
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when user logs out
     return () => {
-      webSocketService.disconnect();
+      if (!isAuthenticated) {
+        webSocketService.disconnect();
+        setConnectionAttempted(false);
+        setIsConnected(false);
+        setRetryCount(0);
+      }
     };
-  }, []);
+  }, [isAuthenticated, user?.email, isConnected, connectionAttempted, maxRetries]);
 
-  const handleWebSocketMessage = (data: WebSocketMessage) => {
+  // Disconnect WebSocket when user logs out
+  useEffect(() => {
+    if (!isAuthenticated && connectionAttempted) {
+      console.log('User logged out, disconnecting WebSocket');
+      webSocketService.disconnect();
+      setConnectionAttempted(false);
+      setIsConnected(false);
+    }
+  }, [isAuthenticated, connectionAttempted]);
+
+  const handleWebSocketMessage = useCallback((data: WebSocketMessage) => {
     console.log('WebSocket message received:', data);
 
     // Handle different message types
@@ -72,27 +134,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
     // Handle CREATE and UPDATE messages
     if (data.id || data.messageId) {
-      const message: Message = {
-        id: data.id?.toString() || data.messageId?.toString() || '',
-        sender_id: data.sender_id?.toString() || '',
-        channel_id: data.channel_id?.toString() || null,
-        recipient_id: data.recipient_id?.toString() || null,
-        content: data.content || '',
-        timestamp: data.timestamp || new Date().toISOString(),
-        thread_parent_id: data.thread_parent_id?.toString() || null,
-        userName: data.userName || 'Unknown User',
-        userAvatar: data.userAvatar || '/placeholder.svg',
-        file_url: data.file_url || null,
-        file_type: data.file_type || null,
-        fileUrl: data.file_url || data.fileUrl || null,
-        fileName: data.file_name || data.fileName || 'file',
-        imageUrl: data.file_type?.startsWith('image/') ? data.file_url : null,
-        reactions: data.reactions || [],
-      };
-
       messageHandlers.forEach(handler => handler(data));
     }
-  };
+  }, [messageHandlers]);
 
   const subscribeToChannel = useCallback((channelId: string, handler: (message: WebSocketMessage) => void) => {
     if (!isConnected) {
@@ -163,8 +207,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     console.log('Message deleted:', messageId);
   };
 
+  // WebSocket automatically handles cross-device message synchronization
+  // No need for manual broadcasting - the server broadcasts to all connected clients
+
   const value: WebSocketContextType = {
     isConnected,
+    connectionStatus,
+    retryCount,
     onMessageReceived,
     onMessageUpdated,
     onMessageDeleted,

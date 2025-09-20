@@ -30,33 +30,49 @@ class WebSocketService {
   private initializeClient() {
     try {
       const websocketUrl = import.meta.env.VITE_MESSAGE_WEBSOCKET_URL || 'http://localhost:8091/ws';
+      console.log('Initializing WebSocket client with URL:', websocketUrl);
+      
       const socket = new SockJS(websocketUrl);
+      
+      // Add error handling for SockJS
+      socket.onerror = (error) => {
+        console.error('SockJS error:', error);
+      };
+      
+      socket.onopen = () => {
+        console.log('SockJS connection opened');
+      };
+      
+      socket.onclose = (event) => {
+        console.log('SockJS connection closed:', event.code, event.reason);
+      };
+      
       this.client = new Client({
         webSocketFactory: () => socket,
         debug: (str) => {
           console.log('WebSocket Debug:', str);
         },
-      onConnect: () => {
-        console.log('WebSocket connected');
-        this.isConnected = true;
-        this.reconnectAttempts = 0;
-        this.reconnectDelay = 1000;
-        this.lastHeartbeat = Date.now();
-        this.startHeartbeat();
-        this.connectionHandlers.forEach(handler => handler(true));
-      },
-      onDisconnect: () => {
-        console.log('WebSocket disconnected');
-        this.isConnected = false;
-        this.stopHeartbeat();
-        this.connectionHandlers.forEach(handler => handler(false));
-        this.attemptReconnect();
-      },
-      onStompError: (frame) => {
-        console.error('WebSocket STOMP error:', frame);
-        this.attemptReconnect();
-      }
-    });
+        onConnect: () => {
+          console.log('WebSocket connected successfully');
+          this.isConnected = true;
+          this.reconnectAttempts = 0;
+          this.reconnectDelay = 1000;
+          this.lastHeartbeat = Date.now();
+          this.startHeartbeat();
+          this.connectionHandlers.forEach(handler => handler(true));
+        },
+        onDisconnect: () => {
+          console.log('WebSocket disconnected');
+          this.isConnected = false;
+          this.stopHeartbeat();
+          this.connectionHandlers.forEach(handler => handler(false));
+          this.attemptReconnect();
+        },
+        onStompError: (frame) => {
+          console.error('WebSocket STOMP error:', frame);
+          this.attemptReconnect();
+        }
+      });
     } catch (error) {
       console.error('Failed to initialize WebSocket client:', error);
       this.client = null;
@@ -83,6 +99,18 @@ class WebSocketService {
 
   public connect(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Clean up any existing connection first
+      if (this.client) {
+        try {
+          this.client.deactivate();
+        } catch (error) {
+          console.warn('Error deactivating existing client:', error);
+        }
+      }
+
+      // Reinitialize the client to ensure clean state
+      this.initializeClient();
+      
       if (!this.client) {
         console.warn('WebSocket client not initialized, skipping connection');
         reject(new Error('WebSocket client not initialized'));
@@ -96,7 +124,7 @@ class WebSocketService {
 
       const timeout = setTimeout(() => {
         reject(new Error('Connection timeout'));
-      }, 10000);
+      }, 15000); // Increased timeout to 15 seconds
 
       this.connectionHandlers.push((connected) => {
         if (connected) {
@@ -105,15 +133,27 @@ class WebSocketService {
         }
       });
 
-      this.client.activate();
+      try {
+        this.client.activate();
+      } catch (error) {
+        console.error('Error activating WebSocket client:', error);
+        reject(error);
+      }
     });
   }
 
   public disconnect() {
     this.stopHeartbeat();
-    if (this.client && this.isConnected) {
-      this.client.deactivate();
+    this.isConnected = false;
+    if (this.client) {
+      try {
+        this.client.deactivate();
+      } catch (error) {
+        console.warn('Error during disconnect:', error);
+      }
     }
+    // Clear connection handlers
+    this.connectionHandlers = [];
   }
 
   private startHeartbeat() {
