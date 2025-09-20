@@ -122,6 +122,8 @@ Refer to each service’s `.env.example` for the full list.
 
 ## Architecture Overview
 
+![Project Architecture](./Teamsync%20Software%20Architecture.jpg)
+
 - API Gateway routes to microservices.
 - Auth issues JWTs used across services.
 - User, Project, Task, Feed, Message microservices with dedicated databases.

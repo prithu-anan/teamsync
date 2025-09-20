@@ -35,10 +35,12 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
+
   useEffect(() => {
     let subscription: any;
     const bootstrap = async () => {
       if (!user?.id) return;
+      
       try {
         setLoading(true);
         const [listRes, countRes] = await Promise.all([
@@ -47,7 +49,10 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         ]);
         const list = Array.isArray(listRes) ? (listRes as Notification[]) : [];
         const count = (countRes as any)?.unreadCount || 0;
-        setNotifications(list);
+        
+        // Filter notifications to only show those for the current user
+        const filteredNotifications = list.filter(notification => notification.userId === Number(user.id));
+        setNotifications(filteredNotifications);
         setUnreadCount(count);
       } finally {
         setLoading(false);
@@ -56,10 +61,16 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       try {
         await notificationWebSocketService.connect();
         subscription = notificationWebSocketService.subscribeToUserNotifications(String(user.id), (msg: NotificationWebSocketMessage) => {
+          // Additional client-side filtering to ensure only notifications for current user are processed
+          if (msg.userId && Number(msg.userId) !== Number(user.id)) {
+            console.log('Ignoring notification for different user:', msg.userId, 'current user:', user.id);
+            return;
+          }
+
           if (msg.type === 'NEW_NOTIFICATION') {
             const newItem: Notification = {
               id: msg.notificationId || '',
-              userId: msg.userId || Number(user.id),
+              userId: Number(msg.userId) || Number(user.id),
               type: msg.notificationType || 'INFO',
               title: msg.title || '',
               message: msg.message || '',
@@ -68,9 +79,13 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
               createdAt: msg.createdAt || new Date().toISOString(),
               readAt: msg.readAt,
             };
-            setNotifications(prev => [newItem, ...prev]);
-            if (typeof msg.unreadCount === 'number') setUnreadCount(msg.unreadCount);
-            else setUnreadCount(prev => prev + 1);
+            
+            // Only add notification if it belongs to current user
+            if (newItem.userId === Number(user.id)) {
+              setNotifications(prev => [newItem, ...prev]);
+              if (typeof msg.unreadCount === 'number') setUnreadCount(msg.unreadCount);
+              else setUnreadCount(prev => prev + 1);
+            }
           } else if (msg.type === 'NOTIFICATION_READ') {
             setNotifications(prev => prev.map(n => n.id === msg.notificationId ? { ...n, isRead: true, readAt: new Date().toISOString() } : n));
             if (typeof msg.unreadCount === 'number') setUnreadCount(msg.unreadCount);
