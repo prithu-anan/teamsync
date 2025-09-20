@@ -3,8 +3,13 @@ import axios from 'axios';
 const AI_API_BASE_URL = `${import.meta.env.VITE_AI_BACKEND_URL || 'http://localhost:8000'}/api`;
 
 export const channel_auto_reply = async ({ channel_id, sender_id }) => {
+    const token = localStorage.getItem("teamsync_jwt");
     try {
-        const res = await axios.post(`${AI_API_BASE_URL}/channels/auto-reply`, { channel_id, sender_id });
+        const res = await axios.post(`${AI_API_BASE_URL}/channels/auto-reply`, { channel_id, sender_id }, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
 
         if (res.status === 200) {
             return res.data;
@@ -22,8 +27,13 @@ export const channel_auto_reply = async ({ channel_id, sender_id }) => {
 }; 
 
 export const direct_auto_reply = async ({ recipient_id, sender_id }) => {
+    const token = localStorage.getItem("teamsync_jwt");
     try {
-        const res = await axios.post(`${AI_API_BASE_URL}/channels/auto-reply`, { recipient_id, sender_id });
+        const res = await axios.post(`${AI_API_BASE_URL}/channels/auto-reply`, { recipient_id, sender_id }, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
 
         if (res.status === 200) {
             return res.data;
@@ -41,8 +51,13 @@ export const direct_auto_reply = async ({ recipient_id, sender_id }) => {
 };
 
 export const thread_auto_reply = async ({ recipient_id, sender_id, parent_thread_id }) => {
+    const token = localStorage.getItem("teamsync_jwt");
     try {
-        const res = await axios.post(`${AI_API_BASE_URL}/channels/auto-reply`, { recipient_id, sender_id, parent_thread_id });
+        const res = await axios.post(`${AI_API_BASE_URL}/channels/auto-reply`, { recipient_id, sender_id, parent_thread_id }, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
 
         if (res.status === 200) {
             return res.data;
