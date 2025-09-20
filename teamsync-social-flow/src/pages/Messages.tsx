@@ -248,7 +248,7 @@ const MessagesContent = () => {
 
   // Subscribe to WebSocket messages when selectedChannel changes
   useEffect(() => {
-    if (!selectedChannel || !webSocketConnected) {
+    if (!selectedChannel || !webSocketConnected || !user?.id) {
       return;
     }
 
@@ -256,9 +256,21 @@ const MessagesContent = () => {
 
     // Subscribe to channel messages
     if (selectedChannel.type === 'group' && selectedChannel.channel_id) {
+      // Subscribe to channel topic (for any future server changes)
       subscribeToChannel(selectedChannel.channel_id, createMessageHandler);
+      
+      // CRITICAL: Subscribe to all participants' user topics since server broadcasts 
+      // channel messages to the sender's user topic, not the channel topic
+      if (selectedChannel.participants && selectedChannel.participants.length > 0) {
+        console.log('Subscribing to all participants:', selectedChannel.participants);
+        selectedChannel.participants.forEach(participantId => {
+          subscribeToUser(participantId.toString(), createMessageHandler);
+        });
+      }
     } else if (selectedChannel.type === 'direct' && selectedChannel.recipient_id) {
       subscribeToUser(selectedChannel.recipient_id, createMessageHandler);
+      // Also subscribe to current user's topic for direct messages
+      subscribeToUser(user.id.toString(), createMessageHandler);
     }
 
     // Cleanup function
@@ -266,11 +278,18 @@ const MessagesContent = () => {
       console.log('Unsubscribing from channel:', selectedChannel);
       if (selectedChannel.type === 'group' && selectedChannel.channel_id) {
         unsubscribeFromChannel(selectedChannel.channel_id);
+        // Unsubscribe from all participants' user topics
+        if (selectedChannel.participants && selectedChannel.participants.length > 0) {
+          selectedChannel.participants.forEach(participantId => {
+            unsubscribeFromUser(participantId.toString());
+          });
+        }
       } else if (selectedChannel.type === 'direct' && selectedChannel.recipient_id) {
         unsubscribeFromUser(selectedChannel.recipient_id);
+        unsubscribeFromUser(user.id.toString());
       }
     };
-  }, [selectedChannel, webSocketConnected]); // Removed function dependencies to prevent loops
+  }, [selectedChannel, webSocketConnected, user?.id]); // Added user?.id dependency
 
   // Subscribe to user-specific messages for direct messages
   useEffect(() => {

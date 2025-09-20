@@ -10,7 +10,7 @@ export interface WebSocketMessage {
   [key: string]: any;
 }
 
-class WebSocketService {
+export class WebSocketService {
   private client: Client | null = null;
   private isConnected = false;
   private reconnectAttempts = 0;
@@ -22,6 +22,7 @@ class WebSocketService {
 
   private messageHandlers: Map<string, (message: WebSocketMessage) => void> = new Map();
   private connectionHandlers: Array<(connected: boolean) => void> = [];
+  private subscriptions: Map<string, any> = new Map(); // Store STOMP subscriptions to keep them alive
 
   constructor() {
     this.initializeClient();
@@ -145,6 +146,20 @@ class WebSocketService {
   public disconnect() {
     this.stopHeartbeat();
     this.isConnected = false;
+    
+    // Unsubscribe from all subscriptions
+    this.subscriptions.forEach(subscription => {
+      try {
+        subscription.unsubscribe();
+      } catch (error) {
+        console.warn('Error unsubscribing:', error);
+      }
+    });
+    
+    // Clear all maps
+    this.messageHandlers.clear();
+    this.subscriptions.clear();
+    
     if (this.client) {
       try {
         this.client.deactivate();
@@ -193,34 +208,53 @@ class WebSocketService {
       return;
     }
 
-    // Check if already subscribed to avoid duplicates
-    const handlerKey = `channel-${channelId}`;
-    if (this.messageHandlers.has(handlerKey)) {
-      console.log(`Already subscribed to channel ${channelId}, skipping duplicate subscription`);
-      return;
+    // Create unique handler key with timestamp to allow multiple handlers per channel
+    const handlerKey = `channel-${channelId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Check if we already have a subscription for this channel
+    const existingSubscriptionKey = `channel-subscription-${channelId}`;
+    let subscription = this.subscriptions.get(existingSubscriptionKey);
+    
+    if (!subscription) {
+      // Create new subscription for this channel
+      subscription = this.client.subscribe(`/topic/channel/${channelId}`, (message: IMessage) => {
+        try {
+          this.lastHeartbeat = Date.now(); // Update heartbeat on message received
+          const data = JSON.parse(message.body);
+          console.log('Received channel message:', data);
+          
+          // Broadcast to all handlers for this channel
+          for (const [key, handler] of this.messageHandlers.entries()) {
+            if (key.startsWith(`channel-${channelId}-`)) {
+              handler(data);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing channel message:', error);
+          // Try to handle malformed messages gracefully
+          const errorData: WebSocketMessage = {
+            type: 'ERROR',
+            error: 'Failed to parse message',
+            rawData: message.body
+          };
+          for (const [key, handler] of this.messageHandlers.entries()) {
+            if (key.startsWith(`channel-${channelId}-`)) {
+              handler(errorData);
+            }
+          }
+        }
+      }, {
+        ack: 'client' // Enable acknowledgment
+      });
+      
+      // Store the subscription
+      this.subscriptions.set(existingSubscriptionKey, subscription);
+      console.log(`Created new subscription for channel ${channelId}`);
     }
 
-    const subscription = this.client.subscribe(`/topic/channel/${channelId}`, (message: IMessage) => {
-      try {
-        this.lastHeartbeat = Date.now(); // Update heartbeat on message received
-        const data = JSON.parse(message.body);
-        console.log('Received channel message:', data);
-        handler(data);
-      } catch (error) {
-        console.error('Error parsing channel message:', error);
-        // Try to handle malformed messages gracefully
-        handler({
-          type: 'ERROR',
-          error: 'Failed to parse message',
-          rawData: message.body
-        });
-      }
-    }, {
-      ack: 'client' // Enable acknowledgment
-    });
-
+    // Store the handler
     this.messageHandlers.set(handlerKey, handler);
-    console.log(`Subscribed to channel ${channelId}`);
+    console.log(`Added handler ${handlerKey} to channel ${channelId} (total handlers: ${Array.from(this.messageHandlers.keys()).filter(k => k.startsWith(`channel-${channelId}-`)).length})`);
     return subscription;
   }
 
@@ -230,45 +264,110 @@ class WebSocketService {
       return;
     }
 
-    // Check if already subscribed to avoid duplicates
-    const handlerKey = `user-${userId}`;
-    if (this.messageHandlers.has(handlerKey)) {
-      console.log(`Already subscribed to user ${userId}, skipping duplicate subscription`);
-      return;
+    // Create unique handler key with timestamp to allow multiple handlers per user
+    const handlerKey = `user-${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Check if we already have a subscription for this user
+    const existingSubscriptionKey = `user-subscription-${userId}`;
+    let subscription = this.subscriptions.get(existingSubscriptionKey);
+    
+    if (!subscription) {
+      // Create new subscription for this user
+      subscription = this.client.subscribe(`/topic/user/${userId}`, (message: IMessage) => {
+        try {
+          this.lastHeartbeat = Date.now(); // Update heartbeat on message received
+          const data = JSON.parse(message.body);
+          console.log('Received user message:', data);
+          
+          // Broadcast to all handlers for this user
+          for (const [key, handler] of this.messageHandlers.entries()) {
+            if (key.startsWith(`user-${userId}-`)) {
+              handler(data);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing user message:', error);
+          // Try to handle malformed messages gracefully
+          const errorData: WebSocketMessage = {
+            type: 'ERROR',
+            error: 'Failed to parse message',
+            rawData: message.body
+          };
+          for (const [key, handler] of this.messageHandlers.entries()) {
+            if (key.startsWith(`user-${userId}-`)) {
+              handler(errorData);
+            }
+          }
+        }
+      }, {
+        ack: 'client' // Enable acknowledgment
+      });
+      
+      // Store the subscription
+      this.subscriptions.set(existingSubscriptionKey, subscription);
+      console.log(`Created new subscription for user ${userId}`);
     }
 
-    const subscription = this.client.subscribe(`/topic/user/${userId}`, (message: IMessage) => {
-      try {
-        this.lastHeartbeat = Date.now(); // Update heartbeat on message received
-        const data = JSON.parse(message.body);
-        console.log('Received user message:', data);
-        handler(data);
-      } catch (error) {
-        console.error('Error parsing user message:', error);
-        // Try to handle malformed messages gracefully
-        handler({
-          type: 'ERROR',
-          error: 'Failed to parse message',
-          rawData: message.body
-        });
-      }
-    }, {
-      ack: 'client' // Enable acknowledgment
-    });
-
+    // Store the handler
     this.messageHandlers.set(handlerKey, handler);
-    console.log(`Subscribed to user ${userId}`);
+    console.log(`Added handler ${handlerKey} to user ${userId} (total handlers: ${Array.from(this.messageHandlers.keys()).filter(k => k.startsWith(`user-${userId}-`)).length})`);
     return subscription;
   }
 
   public unsubscribeFromChannel(channelId: string) {
-    const handlerKey = `channel-${channelId}`;
-    this.messageHandlers.delete(handlerKey);
+    // Find and remove all handlers for this channel
+    const keysToDelete: string[] = [];
+    for (const key of this.messageHandlers.keys()) {
+      if (key.startsWith(`channel-${channelId}-`)) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    keysToDelete.forEach(key => {
+      this.messageHandlers.delete(key);
+    });
+    
+    // If no more handlers for this channel, unsubscribe from STOMP
+    const hasRemainingHandlers = Array.from(this.messageHandlers.keys()).some(key => key.startsWith(`channel-${channelId}-`));
+    if (!hasRemainingHandlers) {
+      const subscriptionKey = `channel-subscription-${channelId}`;
+      const subscription = this.subscriptions.get(subscriptionKey);
+      if (subscription) {
+        subscription.unsubscribe();
+        this.subscriptions.delete(subscriptionKey);
+        console.log(`Unsubscribed from STOMP for channel ${channelId}`);
+      }
+    }
+    
+    console.log(`Removed ${keysToDelete.length} handlers from channel ${channelId}`);
   }
 
   public unsubscribeFromUser(userId: string) {
-    const handlerKey = `user-${userId}`;
-    this.messageHandlers.delete(handlerKey);
+    // Find and remove all handlers for this user
+    const keysToDelete: string[] = [];
+    for (const key of this.messageHandlers.keys()) {
+      if (key.startsWith(`user-${userId}-`)) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    keysToDelete.forEach(key => {
+      this.messageHandlers.delete(key);
+    });
+    
+    // If no more handlers for this user, unsubscribe from STOMP
+    const hasRemainingHandlers = Array.from(this.messageHandlers.keys()).some(key => key.startsWith(`user-${userId}-`));
+    if (!hasRemainingHandlers) {
+      const subscriptionKey = `user-subscription-${userId}`;
+      const subscription = this.subscriptions.get(subscriptionKey);
+      if (subscription) {
+        subscription.unsubscribe();
+        this.subscriptions.delete(subscriptionKey);
+        console.log(`Unsubscribed from STOMP for user ${userId}`);
+      }
+    }
+    
+    console.log(`Removed ${keysToDelete.length} handlers from user ${userId}`);
   }
 
   public onConnectionChange(handler: (connected: boolean) => void) {

@@ -64,7 +64,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         console.warn(`WebSocket connection failed (attempt ${retryAttempt + 1}):`, error);
         setIsConnected(false);
         setConnectionStatus('error');
-        
+
         // Retry logic
         if (retryAttempt < maxRetries) {
           const delay = Math.pow(2, retryAttempt) * 1000; // Exponential backoff: 1s, 2s, 4s
@@ -144,17 +144,13 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       return;
     }
 
-    // Check if already subscribed to avoid duplicates
-    const key = `channel-${channelId}`;
-    if (messageHandlers.has(key)) {
-      console.log(`Already subscribed to channel ${channelId}, skipping duplicate subscription`);
-      return;
-    }
+    // Create unique handler key with timestamp to allow multiple handlers per channel
+    const key = `channel-${channelId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     const subscription = webSocketService.subscribeToChannel(channelId, handler);
     setMessageHandlers(prev => new Map(prev.set(key, handler)));
     return subscription;
-  }, [isConnected, messageHandlers]);
+  }, [isConnected]);
 
   const subscribeToUser = useCallback((userId: string, handler: (message: WebSocketMessage) => void) => {
     if (!isConnected) {
@@ -162,23 +158,24 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
       return;
     }
 
-    // Check if already subscribed to avoid duplicates
-    const key = `user-${userId}`;
-    if (messageHandlers.has(key)) {
-      console.log(`Already subscribed to user ${userId}, skipping duplicate subscription`);
-      return;
-    }
+    // Create unique handler key with timestamp to allow multiple handlers per user
+    const key = `user-${userId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     const subscription = webSocketService.subscribeToUser(userId, handler);
     setMessageHandlers(prev => new Map(prev.set(key, handler)));
     return subscription;
-  }, [isConnected, messageHandlers]);
+  }, [isConnected]);
 
   const unsubscribeFromChannel = useCallback((channelId: string) => {
     webSocketService.unsubscribeFromChannel(channelId);
     setMessageHandlers(prev => {
       const newMap = new Map(prev);
-      newMap.delete(`channel-${channelId}`);
+      // Remove all handlers for this channel
+      for (const key of newMap.keys()) {
+        if (key.startsWith(`channel-${channelId}-`)) {
+          newMap.delete(key);
+        }
+      }
       return newMap;
     });
   }, []);
@@ -187,7 +184,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     webSocketService.unsubscribeFromUser(userId);
     setMessageHandlers(prev => {
       const newMap = new Map(prev);
-      newMap.delete(`user-${userId}`);
+      // Remove all handlers for this user
+      for (const key of newMap.keys()) {
+        if (key.startsWith(`user-${userId}-`)) {
+          newMap.delete(key);
+        }
+      }
       return newMap;
     });
   }, []);
